@@ -75,7 +75,6 @@ func TestAction(t *testing.T) {
 
 		commands.On("CreateCARootSecret", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
 		commands.On("Apply", context, false).Return(nil)
-		commands.On("PopulateConfigs", context, secret).Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)
@@ -111,7 +110,6 @@ func TestAction(t *testing.T) {
 		loader.On("FindBindingOperator", context).Return(binding, nil)
 		loader.On("FindSecret", context, binding).Return(secret, nil)
 
-		commands.On("PopulateConfigs", context, secret).Return(nil)
 		commands.On("CreateCARootSecret", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
 		commands.On("Apply", context, true).Return(nil)
 

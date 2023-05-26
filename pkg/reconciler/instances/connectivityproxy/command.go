@@ -25,7 +25,6 @@ type Commands interface {
 	Apply(*service.ActionContext, bool) error
 	CreateCARootSecret(*service.ActionContext, connectivityclient.ConnectivityClient) error
 	Remove(*service.ActionContext) error
-	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
 
 type CommandActions struct {
@@ -65,28 +64,29 @@ func (a *CommandActions) getChartProvider(context *service.ActionContext, withFi
 	return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
 }
 
-func (a *CommandActions) PopulateConfigs(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) {
+func populateConfigs(configuration map[string]interface{}, bindingSecret *apiCoreV1.Secret) {
 	for key, val := range bindingSecret.Data {
-		a.flatValues(context, key, val)
+		flatValues(configuration, key, val)
 	}
 }
 
-func (a *CommandActions) flatValues(context *service.ActionContext, key string, value []byte) {
+func flatValues(configuration map[string]interface{}, key string, value []byte) {
 
 	var unmarshalled map[string]interface{}
 
 	if err := json.Unmarshal(value, &unmarshalled); err != nil {
-		context.Task.Configuration[BindingKey+key] = string(value)
-	} else {
-		for uKey, uVal := range unmarshalled {
+		configuration[BindingKey+key] = string(value)
+		return
+	}
 
-			strVal, ok := uVal.(string)
-			if ok {
-				a.flatValues(context, uKey, []byte(strVal))
-			} else {
-				context.Task.Configuration[BindingKey+uKey] = uVal
-			}
+	for uKey, uVal := range unmarshalled {
+		strVal, ok := uVal.(string)
+		if ok {
+			flatValues(configuration, uKey, []byte(strVal))
+			continue
 		}
+		configuration[BindingKey+uKey] = uVal
+
 	}
 }
 
