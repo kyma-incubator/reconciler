@@ -45,51 +45,55 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Error while retrieving binding from BTP Operator")
 	}
 
-	if binding != nil {
-		context.Logger.Debug("Reading ServiceBinding Secret")
-		// TODO FindSecret does does not have reference to action and loader
-		bindingSecret, err := a.Loader.FindSecret(context, binding)
+	// detect if connectivity-proxy reconciliation should not be skipped
 
-		context.Logger.Debug("Service Binding Secret check")
+	if binding == nil && app == nil {
+		return nil
+	}
 
-		//TODO consider checking for secret befor applying connectivity-proxy
-		if bindingSecret == nil {
-			context.Logger.Warnf("Skipping reconcilion, %s", err)
-			return nil
-		}
+	// detect if connectivity-proxy is being deleted
 
-		// build overrides for credential secret by reading them from btp-operator secret
-		context.Logger.Debug("Populating configs")
-		populateConfigs(context.Task.Configuration, bindingSecret)
-
-		caClient, err := connectivityclient.NewConnectivityCAClient(context.Task.Configuration)
-		if err != nil {
-			return errors.Wrap(err, "Error - cannot create Connectivity CA client")
-		}
-
-		context.Logger.Debug("Creating Istio CA cacert secret for Connectivity Proxy")
-		err = a.Commands.CreateCARootSecret(context, caClient)
-		if err != nil {
-			return errors.Wrap(err, "error during creatiion of Istio CA cacert secret for Connectivity Proxy")
-		}
-
-		refresh := app != nil
-
-		if refresh {
-			context.Logger.Info("Reconciling component")
-		} else {
-			context.Logger.Info("Installing component")
-		}
-
-		if err := a.Commands.Apply(context, refresh); err != nil {
-			return errors.Wrap(err, "Error during reconcilation")
-		}
-	} else if binding == nil && app != nil {
+	if deleteCP := binding == nil && app != nil; deleteCP {
 		context.Logger.Info("Removing component")
 		if err := a.Commands.Remove(context); err != nil {
 			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err
 		}
+		return nil
+	}
+
+	// apply connectivity-proxy
+
+	context.Logger.Debug("Reading ServiceBinding Secret")
+	// TODO FindSecret does does not have reference to action and loader
+	bindingSecret, err := a.Loader.FindSecret(context, binding)
+
+	context.Logger.Debug("Service Binding Secret check")
+
+	if bindingSecret == nil {
+		context.Logger.Warnf("Skipping reconcilion, %s", err)
+		return nil
+	}
+
+	// build overrides for credential secret by reading them from btp-operator secret
+	context.Logger.Debug("Populating configs")
+	populateConfigs(context.Task.Configuration, bindingSecret)
+
+	caClient, err := connectivityclient.NewConnectivityCAClient(context.Task.Configuration)
+	if err != nil {
+		return errors.Wrap(err, "Error - cannot create Connectivity CA client")
+	}
+
+	context.Logger.Debug("Creating Istio CA cacert secret for Connectivity Proxy")
+	err = a.Commands.CreateCARootSecret(context, caClient)
+	if err != nil {
+		return errors.Wrap(err, "error during creatiion of Istio CA cacert secret for Connectivity Proxy")
+	}
+
+	refresh := app != nil
+
+	if err := a.Commands.Apply(context, refresh); err != nil {
+		return errors.Wrap(err, "Error during reconcilation")
 	}
 
 	return nil
