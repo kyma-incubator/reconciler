@@ -3,6 +3,7 @@ package connectivityproxy
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/configmaps"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -30,6 +31,7 @@ type Commands interface {
 	CreateSecretTLS(ctx *service.ActionContext, ns, secretName string) (map[string][]byte, error)
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
+	CreateServiceMappingConfigMap(ctx *service.ActionContext, ns, configMapName string) error
 }
 
 type CommandActions struct {
@@ -218,4 +220,13 @@ func getIstioSecretCfg(config map[string]interface{}) (string, string, string, e
 	strSecretName := fmt.Sprintf("%v", istioSecretName)
 
 	return strNamespace, strSecretKey, strSecretName, nil
+}
+
+func (a *CommandActions) CreateServiceMappingConfigMap(ctx *service.ActionContext, ns, configMapName string) error {
+	clientset, err := ctx.KubeClient.Clientset()
+	if err != nil {
+		return errors.Wrap(err, "cannot get a target cluster client set")
+	}
+
+	return configmaps.NewConfigMapRepo(ns, clientset).CreateServiceMappingConfig(configMapName)
 }

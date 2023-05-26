@@ -2,13 +2,10 @@ package connectivityproxy
 
 import (
 	"bytes"
-	"context"
-	"fmt"
-	"strings"
-	"time"
-
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/connectivityclient"
@@ -30,6 +27,7 @@ const (
 	smSecretName       = "connectivity-sm-operator-secrets-tls"
 	cpSvcKeySecretName = "connectivity-proxy-service-key"
 	kymaSystem         = "kyma-system"
+	mappingsConfigMap  = "connectivity-proxy-service-mappings"
 )
 
 func (a *CustomAction) Run(actionCtx *service.ActionContext) error {
@@ -88,6 +86,11 @@ func (a *CustomAction) Run(actionCtx *service.ActionContext) error {
 			return fmt.Errorf("unable to create '%s' secret: %w", smSecretName, err)
 		}
 
+		err = a.Commands.CreateServiceMappingConfigMap(actionCtx, kymaSystem, mappingsConfigMap)
+		if err != nil {
+			return fmt.Errorf("unable to create '%s' service mapping config map: %w", smSecretName, err)
+		}
+
 		encodedSrk, err := newEncodedSecretSvcKey(bindingSecret)
 		if err != nil {
 			return fmt.Errorf("unable to create service_key_secret from %s/%s: %w",
@@ -120,19 +123,7 @@ func (a *CustomAction) Run(actionCtx *service.ActionContext) error {
 
 		refresh := app != nil
 
-		if refresh {
-			actionCtx.Logger.Info("Deleting stateful set")
-			// workarounds 2.4.4 to 2.8.0 upgrade tunnel bug
-			ctx, cancel := context.WithTimeout(actionCtx.Context, time.Second*10)
-			defer cancel()
-
-			if _, err := actionCtx.KubeClient.DeleteResource(ctx, app.Kind, app.Name, app.Namespace); err != nil {
-				return errors.Wrap(err, "Error during stateful set deletion")
-			}
-
-		} else {
-			actionCtx.Logger.Info("Installing component")
-		}
+		actionCtx.Logger.Info("Installing component")
 
 		if err := a.Commands.Apply(actionCtx, refresh); err != nil {
 			return errors.Wrap(err, "Error during reconcilation")
@@ -169,6 +160,8 @@ func prepareOverridesFor280(actionCtx *service.ActionContext, secret *apiCoreV1.
 	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalHost"] = fmt.Sprintf("cc-proxy.%s", xtHost)
 	actionCtx.Task.Configuration["secretConfig.integration.connectivityService.secretName"] = "connectivity-proxy-service-key"
 	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalPort"] = "443"
+	actionCtx.Task.Configuration["config.serviceMappings.configMapName"] = mappingsConfigMap
+	actionCtx.Task.Configuration["config.serviceMappings.tlsSecret"] = smSecretName
 
 	encoded := base64.StdEncoding.EncodeToString([]byte(caData))
 	actionCtx.Task.Configuration["deployment.serviceMapping.caBundle"] = encoded
