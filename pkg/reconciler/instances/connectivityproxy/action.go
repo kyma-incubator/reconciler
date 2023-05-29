@@ -1,12 +1,18 @@
 package connectivityproxy
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/connectivityclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
+)
+
+const (
+	kymaSystem                = "kyma-system"
+	mappingOperatorSecretName = "connectivity-sm-operator-secrets-tls" // #nosec G101
 )
 
 type CustomAction struct {
@@ -79,6 +85,11 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	context.Logger.Debug("Populating configs")
 	populateConfigs(context.Task.Configuration, bindingSecret)
 
+	_, err = a.Commands.CreateSecretMappingOperator(context, kymaSystem)
+	if err != nil {
+		return fmt.Errorf("unable to create '%s' secret: %w", mappingOperatorSecretName, err)
+	}
+
 	caClient, err := connectivityclient.NewConnectivityCAClient(context.Task.Configuration)
 	if err != nil {
 		return errors.Wrap(err, "Error - cannot create Connectivity CA client")
@@ -93,7 +104,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	refresh := app != nil
 
 	if err := a.Commands.Apply(context, refresh); err != nil {
-		return errors.Wrap(err, "Error during reconcilation")
+		return errors.Wrap(err, "Error during reconciliation")
 	}
 
 	return nil

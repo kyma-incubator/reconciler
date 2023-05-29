@@ -74,6 +74,7 @@ func TestAction(t *testing.T) {
 		loader.On("FindSecret", context, binding).Return(secret, nil)
 
 		commands.On("CreateCARootSecret", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
+		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return(nil, nil)
 		commands.On("Apply", context, false).Return(nil)
 
 		err := action.Run(context)
@@ -104,9 +105,13 @@ func TestAction(t *testing.T) {
 
 	t.Run("Should refresh app when both binding and app exists", func(t *testing.T) {
 		kubeClient, context, action, loader, commands := setupActionTestEnv()
+		kubeClient.On("Clientset").Return(nil)
 
 		kubeClient.On("GetHost").Return("test host")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(statefulset, nil)
+
+		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return(nil, nil)
+
 		loader.On("FindBindingOperator", context).Return(binding, nil)
 		loader.On("FindSecret", context, binding).Return(secret, nil)
 
