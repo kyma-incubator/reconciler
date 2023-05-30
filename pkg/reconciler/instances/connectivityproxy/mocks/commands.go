@@ -69,6 +69,20 @@ func (_m *Commands) CreateSecretMappingOperator(_a0 *service.ActionContext, _a1 
 	return r0, r1
 }
 
+// CreateServiceMappingConfigMap provides a mock function with given fields: ctx, ns, configMapName
+func (_m *Commands) CreateServiceMappingConfigMap(ctx *service.ActionContext, ns string, configMapName string) error {
+	ret := _m.Called(ctx, ns, configMapName)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*service.ActionContext, string, string) error); ok {
+		r0 = rf(ctx, ns, configMapName)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Remove provides a mock function with given fields: _a0
 func (_m *Commands) Remove(_a0 *service.ActionContext) error {
 	ret := _m.Called(_a0)
