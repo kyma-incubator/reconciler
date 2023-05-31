@@ -1,8 +1,10 @@
 package connectivityproxy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -10,8 +12,10 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/rendering"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/secrets"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/kyma-incubator/reconciler/pkg/ssl"
 	"github.com/pkg/errors"
 	apiCoreV1 "k8s.io/api/core/v1"
+	errk8s "k8s.io/apimachinery/pkg/api/errors"
 	k8s "k8s.io/client-go/kubernetes"
 )
 
@@ -24,8 +28,8 @@ const (
 type Commands interface {
 	Apply(*service.ActionContext, bool) error
 	CreateCARootSecret(*service.ActionContext, connectivityclient.ConnectivityClient) error
+	CreateSecretMappingOperator(*service.ActionContext, string) (map[string][]byte, error)
 	Remove(*service.ActionContext) error
-	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
 
 type CommandActions struct {
@@ -65,29 +69,53 @@ func (a *CommandActions) getChartProvider(context *service.ActionContext, withFi
 	return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
 }
 
-func (a *CommandActions) PopulateConfigs(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) {
+func populateConfigs(configuration map[string]interface{}, bindingSecret *apiCoreV1.Secret) {
 	for key, val := range bindingSecret.Data {
-		a.flatValues(context, key, val)
+		flatValues(configuration, key, val)
 	}
 }
 
-func (a *CommandActions) flatValues(context *service.ActionContext, key string, value []byte) {
+func flatValues(configuration map[string]interface{}, key string, value []byte) {
 
 	var unmarshalled map[string]interface{}
 
 	if err := json.Unmarshal(value, &unmarshalled); err != nil {
-		context.Task.Configuration[BindingKey+key] = string(value)
-	} else {
-		for uKey, uVal := range unmarshalled {
-
-			strVal, ok := uVal.(string)
-			if ok {
-				a.flatValues(context, uKey, []byte(strVal))
-			} else {
-				context.Task.Configuration[BindingKey+uKey] = uVal
-			}
-		}
+		configuration[BindingKey+key] = string(value)
+		return
 	}
+
+	for uKey, uVal := range unmarshalled {
+		strVal, ok := uVal.(string)
+		if ok {
+			flatValues(configuration, uKey, []byte(strVal))
+			continue
+		}
+		configuration[BindingKey+uKey] = uVal
+
+	}
+}
+
+func (a *CommandActions) CreateSecretMappingOperator(s *service.ActionContext, ns string) (map[string][]byte, error) {
+	cs, err := s.KubeClient.Clientset()
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get a target cluster client set")
+	}
+
+	repo := secrets.NewSecretRepo(ns, cs)
+	data, err := ssl.GenerateCertificate(
+		"connectivity-proxy-smv.kyma-system.svc",
+		[]string{"connectivity-proxy-smv.kyma-system.svc"},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return repo.SaveSecretMappingOperator(
+		context.Background(),
+		mappingOperatorSecretName,
+		data[0],
+		data[1],
+	)
 }
 
 func (a *CommandActions) CreateCARootSecret(context *service.ActionContext, caClient connectivityclient.ConnectivityClient) error {
@@ -134,22 +162,44 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 		return errors.Wrap(err, "Error during removal")
 	}
 
-	return a.removeIstioSecrets(context)
+	var errs []error
+	// remove secrets
+	for _, nameNsPair := range [][2]string{
+		{"cc-certs", "istio-system"},
+		{"cc-certs-cacert", "istio-system"},
+		{mappingOperatorSecretName, kymaSystem},
+	} {
+		if err := removeSecret(context, nameNsPair[0], nameNsPair[1]); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return aggregateErrors(errs)
 }
 
-func (a *CommandActions) removeIstioSecrets(context *service.ActionContext) error {
+func aggregateErrors(errs []error) error {
+	var messages []string
 
-	_, err := context.KubeClient.DeleteResource(context.Context, "secret", "cc-certs", "istio-system")
-	if err != nil {
-		context.Logger.Error("Error during removal of cc-certs in istio-system")
-		return errors.Wrap(err, "Error during removal of cc-certs in istio-system")
+	for _, err := range errs {
+		messages = append(messages, err.Error())
 	}
 
-	_, err = context.KubeClient.DeleteResource(context.Context, "secret", "cc-certs-cacert", "istio-system")
-	if err != nil {
-		context.Logger.Info("Error during removal of cc-certs-cacert in istio-system")
-		return errors.Wrap(err, "Error during removal of cc-certs-cacert in istio-system")
+	if len(messages) == 0 {
+		return nil
 	}
+
+	aggMessage := strings.Join(messages, "; ")
+	return errors.New(aggMessage)
+}
+
+func removeSecret(context *service.ActionContext, secretName, ns string) error {
+	_, err := context.KubeClient.DeleteResource(context.Context, "secret", secretName, ns)
+	if err != nil && !errk8s.IsNotFound(err) {
+		errMsg := fmt.Sprintf("Error during removal of %s in %s", secretName, ns)
+		context.Logger.Error(errMsg)
+		return errors.Wrap(err, errMsg)
+	}
+
 	return nil
 }
 

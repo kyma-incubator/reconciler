@@ -276,16 +276,12 @@ func TestCommands_PopulateConfig(t *testing.T) {
 			nil).
 			Return(nil)
 
-		commands := CommandActions{
-			install: delegateMock,
-		}
-
 		secret := &v1.Secret{Data: map[string][]byte{
 			"key-1": []byte("value-1"),
 			"key-2": []byte("value-2"),
 		}}
 
-		commands.PopulateConfigs(actionContext, secret)
+		populateConfigs(actionContext.Task.Configuration, secret)
 		require.Equal(t, map[string]interface{}{
 			"global.binding.key-1": "value-1",
 			"global.binding.key-2": "value-2",
@@ -307,15 +303,11 @@ func TestCommands_PopulateConfig(t *testing.T) {
 			nil).
 			Return(nil)
 
-		commands := CommandActions{
-			install: delegateMock,
-		}
-
 		secret := &v1.Secret{Data: map[string][]byte{
 			"parentkey": []byte(`{"key-1": "value-1","key-2": "value-2"}`),
 		}}
 
-		commands.PopulateConfigs(actionContext, secret)
+		populateConfigs(actionContext.Task.Configuration, secret)
 		require.Equal(t, map[string]interface{}{
 			"global.binding.key-1": "value-1",
 			"global.binding.key-2": "value-2",
@@ -337,15 +329,11 @@ func TestCommands_PopulateConfig(t *testing.T) {
 			nil).
 			Return(nil)
 
-		commands := CommandActions{
-			install: delegateMock,
-		}
-
 		secret := &v1.Secret{Data: map[string][]byte{
 			"parentkey": []byte(`{"key-1": "value-1",  "key-2": "{\"key-3\":\"value-3\", \"key-4\":\"value-4\"}" }`),
 		}}
 
-		commands.PopulateConfigs(actionContext, secret)
+		populateConfigs(actionContext.Task.Configuration, secret)
 		require.Equal(t, map[string]interface{}{
 			"global.binding.key-1": "value-1",
 			"global.binding.key-3": "value-3",
@@ -398,6 +386,9 @@ func TestCommandRemove(t *testing.T) {
 			Return(nil, nil)
 
 		client.On("DeleteResource", actionContext.Context, "secret", "cc-certs-cacert", "istio-system").
+			Return(nil, nil)
+
+		client.On("DeleteResource", actionContext.Context, "secret", mappingOperatorSecretName, kymaSystem).
 			Return(nil, nil)
 
 		actionContext.KubeClient = client

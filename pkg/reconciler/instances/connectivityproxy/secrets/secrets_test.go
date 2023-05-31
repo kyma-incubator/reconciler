@@ -12,6 +12,20 @@ import (
 
 func TestSecretRepository(t *testing.T) {
 
+	t.Run("Should make and save", func(t *testing.T) {
+
+		fakeClientSet := fake.NewSimpleClientset()
+		repo := NewSecretRepo("test-namespace", fakeClientSet)
+
+		data, err := repo.SaveSecretMappingOperator(context.Background(), "test", []byte("me"), []byte("plz"))
+		require.NoError(t, err)
+
+		secret, err := fakeClientSet.CoreV1().Secrets("test-namespace").Get(context.Background(), "test", metav1.GetOptions{})
+		require.NoError(t, err)
+
+		require.Equal(t, data, secret.Data)
+	})
+
 	t.Run("Should make and save CA secret from ca bytes in desired namespace", func(t *testing.T) {
 
 		fakeClientSet := fake.NewSimpleClientset()
