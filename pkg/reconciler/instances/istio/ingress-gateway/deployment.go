@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	namespace      				   string = "istio-system"
-	name           				   string = "istio-ingressgateway"
-	LastRestartDate 			   string = "reconciler.kyma-project.io/lastRestartDate"
+	namespace                      string = "istio-system"
+	name                           string = "istio-ingressgateway"
+	LastRestartDate                string = "reconciler.kyma-project.io/lastRestartDate"
 	AwsLoadBalancerConnIdleTimeout string = "service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout"
 )
 
