@@ -29,6 +29,11 @@ func (l *NamespaceInterceptor) Intercept(resources *kubernetes.ResourceCacheList
 			labels[SignifyValidationLabel] = "enabled"
 		}
 
+		//enable Signify signature validation for istio-system namespace
+		if u.GetName() == "istio-system" {
+			labels[SignifyValidationLabel] = "enabled"
+		}
+
 		u.SetLabels(labels)
 		return nil
 	}
