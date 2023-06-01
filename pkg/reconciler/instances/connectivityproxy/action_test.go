@@ -76,6 +76,7 @@ func TestAction(t *testing.T) {
 		commands.On("CreateCARootSecret", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
 		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return(nil, nil)
 		commands.On("Apply", context, false).Return(nil)
+		commands.On("CreateServiceMappingConfigMap", context, "kyma-system", "connectivity-proxy-service-mappings").Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)
@@ -111,6 +112,7 @@ func TestAction(t *testing.T) {
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(statefulset, nil)
 
 		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return(nil, nil)
+		commands.On("CreateServiceMappingConfigMap", context, "kyma-system", "connectivity-proxy-service-mappings").Return(nil)
 
 		loader.On("FindBindingOperator", context).Return(binding, nil)
 		loader.On("FindSecret", context, binding).Return(secret, nil)

@@ -1,10 +1,11 @@
 package connectivityproxy
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/configmaps"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -30,6 +31,7 @@ type Commands interface {
 	CreateCARootSecret(*service.ActionContext, connectivityclient.ConnectivityClient) error
 	CreateSecretMappingOperator(*service.ActionContext, string) (map[string][]byte, error)
 	Remove(*service.ActionContext) error
+	CreateServiceMappingConfigMap(ctx *service.ActionContext, ns, configMapName string) error
 }
 
 type CommandActions struct {
@@ -111,7 +113,7 @@ func (a *CommandActions) CreateSecretMappingOperator(s *service.ActionContext, n
 	}
 
 	return repo.SaveSecretMappingOperator(
-		context.Background(),
+		s.Context,
 		mappingOperatorSecretName,
 		data[0],
 		data[1],
@@ -162,19 +164,7 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 		return errors.Wrap(err, "Error during removal")
 	}
 
-	var errs []error
-	// remove secrets
-	for _, nameNsPair := range [][2]string{
-		{"cc-certs", "istio-system"},
-		{"cc-certs-cacert", "istio-system"},
-		{mappingOperatorSecretName, kymaSystem},
-	} {
-		if err := removeSecret(context, nameNsPair[0], nameNsPair[1]); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	return aggregateErrors(errs)
+	return removeCpResources(context)
 }
 
 func aggregateErrors(errs []error) error {
@@ -192,15 +182,43 @@ func aggregateErrors(errs []error) error {
 	return errors.New(aggMessage)
 }
 
-func removeSecret(context *service.ActionContext, secretName, ns string) error {
-	_, err := context.KubeClient.DeleteResource(context.Context, "secret", secretName, ns)
+type resourceType string
+
+const (
+	rscTypeSecret    = "secret"
+	rscTypeConfigmap = "configmap"
+)
+
+func removeResource(context *service.ActionContext, t resourceType, name, ns string) error {
+	_, err := context.KubeClient.DeleteResource(context.Context, string(t), name, ns)
 	if err != nil && !errk8s.IsNotFound(err) {
-		errMsg := fmt.Sprintf("Error during removal of %s in %s", secretName, ns)
+		errMsg := fmt.Sprintf("Error during removal of %s in %s", name, ns)
 		context.Logger.Error(errMsg)
 		return errors.Wrap(err, errMsg)
 	}
 
 	return nil
+}
+
+func removeCpResources(context *service.ActionContext) error {
+	var errs []error
+	// remove secrets
+	for _, rscInfo := range []struct {
+		name string
+		ns   string
+		t    resourceType
+	}{
+		{name: "cc-certs", ns: "istio-system", t: rscTypeSecret},
+		{name: "cc-certs-cacert", ns: "istio-system", t: rscTypeSecret},
+		{name: mappingOperatorSecretName, ns: kymaSystem, t: rscTypeSecret},
+		{name: mappingsConfigMap, ns: kymaSystem, t: rscTypeConfigmap},
+	} {
+		if err := removeResource(context, rscInfo.t, rscInfo.name, rscInfo.ns); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return aggregateErrors(errs)
 }
 
 func makeIstioCASecret(task *reconciler.Task, targetClientSet k8s.Interface, ca []byte) error {
@@ -236,4 +254,13 @@ func getIstioSecretCfg(config map[string]interface{}) (string, string, string, e
 	strSecretName := fmt.Sprintf("%v", istioSecretName)
 
 	return strNamespace, strSecretKey, strSecretName, nil
+}
+
+func (a *CommandActions) CreateServiceMappingConfigMap(svcActionCtx *service.ActionContext, ns, configMapName string) error {
+	clientset, err := svcActionCtx.KubeClient.Clientset()
+	if err != nil {
+		return errors.Wrap(err, "cannot get a target cluster client set")
+	}
+
+	return configmaps.NewConfigMapRepo(ns, clientset).CreateServiceMappingConfig(svcActionCtx.Context, configMapName)
 }

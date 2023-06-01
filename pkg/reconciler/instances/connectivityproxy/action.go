@@ -13,6 +13,7 @@ import (
 const (
 	kymaSystem                = "kyma-system"
 	mappingOperatorSecretName = "connectivity-sm-operator-secrets-tls" // #nosec G101
+	mappingsConfigMap         = "connectivity-proxy-service-mappings"
 )
 
 type CustomAction struct {
@@ -88,6 +89,11 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	_, err = a.Commands.CreateSecretMappingOperator(context, kymaSystem)
 	if err != nil {
 		return fmt.Errorf("unable to create '%s' secret: %w", mappingOperatorSecretName, err)
+	}
+
+	err = a.Commands.CreateServiceMappingConfigMap(context, kymaSystem, mappingsConfigMap)
+	if err != nil {
+		return fmt.Errorf("unable to create '%s' service mapping config map: %w", mappingOperatorSecretName, err)
 	}
 
 	caClient, err := connectivityclient.NewConnectivityCAClient(context.Task.Configuration)
