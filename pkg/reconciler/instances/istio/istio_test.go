@@ -169,7 +169,8 @@ func Test_RunUpdateAction(t *testing.T) {
 		require.NoError(t, err)
 		err = v1.AddToScheme(scheme.Scheme)
 		require.NoError(t, err)
-		ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+		deployment := appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "istio-ingressgateway", Namespace: "istio-system"}}
+		ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(&deployment).Build()
 		providerMock := clientsetmocks.Provider{}
 		providerMock.On("RetrieveFrom", mock.Anything, mock.Anything).Return(fake.NewSimpleClientset(), nil)
 		providerMock.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
@@ -309,6 +310,7 @@ func newFakeKubeClient() *k8smocks.Client {
 	mockClient.On("CoreV1").Return(nil)
 	mockClient.On("Delete", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	mockClient.On("PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockClient.On("Get").Return(appsv1.Deployment{})
 
 	return mockClient
 }

@@ -212,6 +212,17 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 	}
 
 	logger.Infof("Istio in version %s successfully installed", version)
+	logger.Infof("Annotating ingress-gateway for AWS connection idle timeout")
+
+	istioClient, err := c.provider.GetIstioClient(kubeConfig)
+	if err != nil {
+		return err
+	}
+
+	err = ingressgateway.AnnotateDeploymentAWS(context, istioClient)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -304,13 +315,20 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 	}
 
 	logger.Infof("Istio has been updated successfully to version %s", targetVersion)
+	logger.Infof("Annotating ingress-gateway for AWS connection idle timeout")
+
+	istioClient, err := c.provider.GetIstioClient(kubeConfig)
+	if err != nil {
+		return err
+	}
+
+	err = ingressgateway.AnnotateDeploymentAWS(context, istioClient)
+	if err != nil {
+		return err
+	}
 
 	if ingressGatewayNeedsRestart {
 		logger.Infof("Restarting ingress-gateway")
-		istioClient, err := c.provider.GetIstioClient(kubeConfig)
-		if err != nil {
-			return err
-		}
 		err = ingressgateway.RestartDeployment(context, istioClient)
 		if err != nil {
 			return err

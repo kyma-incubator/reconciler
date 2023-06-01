@@ -113,7 +113,21 @@ func TestRestartIngressGatewayDeployment(t *testing.T) {
 		dep := appsv1.Deployment{}
 		err = client.Get(context.TODO(), types.NamespacedName{Namespace: depNamespace, Name: depName}, &dep)
 		require.NoError(t, err)
-		require.NotEmpty(t, dep.Spec.Template.Annotations["reconciler.kyma-project.io/lastRestartDate"])
+		require.NotEmpty(t, dep.Spec.Template.Annotations[ingressgateway.LastRestartDate])
+	})
+}
+
+func TestAnnotateDeploymentAWS(t *testing.T) {
+	t.Run("should set annotation on Istio IG deployment with AWS load balancer timeout setting", func(t *testing.T) {
+		client := GetClientSet(t, TestConfigMap)
+
+		err := ingressgateway.AnnotateDeploymentAWS(context.TODO(), client)
+		require.NoError(t, err)
+
+		dep := appsv1.Deployment{}
+		err = client.Get(context.TODO(), types.NamespacedName{Namespace: depNamespace, Name: depName}, &dep)
+		require.NoError(t, err)
+		require.NotEmpty(t, dep.Spec.Template.Annotations[ingressgateway.AwsLoadBalancerConnIdleTimeout])
 	})
 }
 

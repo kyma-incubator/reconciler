@@ -16,11 +16,13 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	clientsetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
+	ingressgateway "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/ingress-gateway"
 	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
 	datamocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data/mocks"
 	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
@@ -126,7 +128,8 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 	require.NoError(t, err)
 	err = corev1.AddToScheme(scheme.Scheme)
 	require.NoError(t, err)
-	ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+	deployment := appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "istio-ingressgateway", Namespace: "istio-system"}}
+	ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(&deployment).Build()
 
 	t.Run("should not install when istio version could not be resolved", func(t *testing.T) {
 		// given
@@ -253,6 +256,31 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should annotate Istio GW with AWS load balancer timeout setting", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
+		cmdResolver := TestCommanderResolver{cmder: &cmder}
+
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
+		gatherer := datamocks.Gatherer{}
+		gatherer.On("GetInstalledIstioVersion", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("*zap.SugaredLogger")).Return("1.2.3", nil)
+		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider, &gatherer)
+
+		// when
+		err := wrapper.Install(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)
+
+		// then
+		require.NoError(t, err)
+		igDeployment := appsv1.Deployment{}
+		err = ctrlClient.Get(context.TODO(), types.NamespacedName{Name: "istio-ingressgateway", Namespace: "istio-system"}, &igDeployment)
+		require.NoError(t, err)
+		require.NotEmpty(t, igDeployment.Spec.Template.Annotations[ingressgateway.AwsLoadBalancerConnIdleTimeout])
 	})
 }
 
@@ -456,7 +484,8 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 	require.NoError(t, err)
 	err = corev1.AddToScheme(scheme.Scheme)
 	require.NoError(t, err)
-	ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+	deployment := appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "istio-ingressgateway", Namespace: "istio-system"}}
+	ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(&deployment).Build()
 
 	t.Run("should not update when istio version could not be resolved", func(t *testing.T) {
 		// given
@@ -584,6 +613,31 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
+
+	t.Run("should update Istio GW with AWS load balancer timeout setting", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
+		cmdResolver := TestCommanderResolver{cmder: &cmder}
+
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
+		gatherer := datamocks.Gatherer{}
+		gatherer.On("GetInstalledIstioVersion", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("*zap.SugaredLogger")).Return("1.2.3", nil)
+		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider, &gatherer)
+
+		// when
+		err := wrapper.Update(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)
+
+		// then
+		require.NoError(t, err)
+		igDeployment := appsv1.Deployment{}
+		err = ctrlClient.Get(context.TODO(), types.NamespacedName{Name: "istio-ingressgateway", Namespace: "istio-system"}, &igDeployment)
+		require.NoError(t, err)
+		require.NotEmpty(t, igDeployment.Spec.Template.Annotations[ingressgateway.AwsLoadBalancerConnIdleTimeout])
+	})
 }
 
 func Test_DefaultIstioPerformer_CNI_Merge(t *testing.T) {
@@ -592,7 +646,8 @@ func Test_DefaultIstioPerformer_CNI_Merge(t *testing.T) {
 	log := logger.NewLogger(false)
 	err := v1alpha1.AddToScheme(scheme.Scheme)
 	require.NoError(t, err)
-	ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+	deployment := appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "istio-ingressgateway", Namespace: "istio-system"}}
+	ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(&deployment ).Build()
 	ctx := context.Background()
 	defer ctx.Done()
 

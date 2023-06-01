@@ -528,6 +528,8 @@ func newFakeKubeClient() *k8smocks.Client {
 	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
 	mockClient.On("Kubeconfig").Return("kubeconfig")
 	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockClient.On("Get").Return(nil)
+	mockClient.On("Update").Return(nil)
 
 	return mockClient
 }

@@ -16,6 +16,7 @@ import (
 	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
 	datamocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data/mocks"
 	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
+	ingressgateway "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/ingress-gateway"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -80,7 +81,7 @@ func Test_DefaultIstioPerfomer_UpdateIGRestart(t *testing.T) {
 		dep := appsv1.Deployment{}
 		err = ctrlClientSameConfig.Get(context.TODO(), types.NamespacedName{Namespace: testutils.DepNamespace, Name: testutils.DepName}, &dep)
 		require.NoError(t, err)
-		require.Empty(t, dep.Spec.Template.Annotations["reconciler.kyma-project.io/lastRestartDate"])
+		require.Empty(t, dep.Spec.Template.Annotations[ingressgateway.LastRestartDate])
 	})
 
 	t.Run("should restart IG when config changed", func(t *testing.T) {
@@ -123,6 +124,6 @@ func Test_DefaultIstioPerfomer_UpdateIGRestart(t *testing.T) {
 		dep := appsv1.Deployment{}
 		err = ctrlClientDiffConfig.Get(context.TODO(), types.NamespacedName{Namespace: testutils.DepNamespace, Name: testutils.DepName}, &dep)
 		require.NoError(t, err)
-		require.NotEmpty(t, dep.Spec.Template.Annotations["reconciler.kyma-project.io/lastRestartDate"])
+		require.NotEmpty(t, dep.Spec.Template.Annotations[ingressgateway.LastRestartDate])
 	})
 }

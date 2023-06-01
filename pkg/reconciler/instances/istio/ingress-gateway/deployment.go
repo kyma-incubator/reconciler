@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	namespace      string = "istio-system"
-	name           string = "istio-ingressgateway"
-	annotationName string = "reconciler.kyma-project.io/lastRestartDate"
+	namespace      				   string = "istio-system"
+	name           				   string = "istio-ingressgateway"
+	LastRestartDate 			   string = "reconciler.kyma-project.io/lastRestartDate"
+	AwsLoadBalancerConnIdleTimeout string = "service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout"
 )
 
 func RestartDeployment(ctx context.Context, k8sClient client.Client) error {
@@ -27,7 +28,22 @@ func RestartDeployment(ctx context.Context, k8sClient client.Client) error {
 	if len(deployment.Spec.Template.Annotations) == 0 {
 		deployment.Spec.Template.Annotations = make(map[string]string)
 	}
-	deployment.Spec.Template.Annotations[annotationName] = time.Now().Format(time.RFC3339)
+	deployment.Spec.Template.Annotations[LastRestartDate] = time.Now().Format(time.RFC3339)
+
+	return k8sClient.Update(ctx, &deployment)
+}
+
+func AnnotateDeploymentAWS(ctx context.Context, k8sClient client.Client) error {
+	deployment := appsv1.Deployment{}
+	err := k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &deployment)
+	if err != nil {
+		return err
+	}
+
+	if len(deployment.Spec.Template.Annotations) == 0 {
+		deployment.Spec.Template.Annotations = make(map[string]string)
+	}
+	deployment.Spec.Template.Annotations[AwsLoadBalancerConnIdleTimeout] = "4000"
 
 	return k8sClient.Update(ctx, &deployment)
 }
