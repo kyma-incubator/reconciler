@@ -1,6 +1,8 @@
 package connectivityproxy
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -8,12 +10,18 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/connectivityclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
+
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
+	tagHost                   = "global.kubeHost"
 	kymaSystem                = "kyma-system"
 	mappingOperatorSecretName = "connectivity-sm-operator-secrets-tls" // #nosec G101
 	mappingsConfigMap         = "connectivity-proxy-service-mappings"
+	cpSvcKeySecretName        = "connectivity-proxy-service-key"       // #nosec G101
+	smSecretName              = "connectivity-sm-operator-secrets-tls" // #nosec G101
 )
 
 type CustomAction struct {
@@ -86,7 +94,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	context.Logger.Debug("Populating configs")
 	populateConfigs(context.Task.Configuration, bindingSecret)
 
-	_, err = a.Commands.CreateSecretMappingOperator(context, kymaSystem)
+	certificate, err := a.Commands.CreateSecretMappingOperator(context, kymaSystem)
 	if err != nil {
 		return fmt.Errorf("unable to create '%s' secret: %w", mappingOperatorSecretName, err)
 	}
@@ -94,6 +102,25 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	err = a.Commands.CreateServiceMappingConfigMap(context, kymaSystem, mappingsConfigMap)
 	if err != nil {
 		return fmt.Errorf("unable to create '%s' service mapping config map: %w", mappingOperatorSecretName, err)
+	}
+
+	secretRootKey, _, err := unstructured.NestedString(binding.Object, "spec", "secretRootKey")
+	if err != nil {
+		return fmt.Errorf("unable to access binding specification")
+	}
+
+	encodedSrk, err := newEncodedSecretSvcKey(secretRootKey, bindingSecret)
+	if err != nil {
+		return fmt.Errorf("unable to create service_key_secret from %s/%s: %w",
+			bindingSecret.Namespace, bindingSecret.Name, err)
+	}
+
+	if err := a.Commands.CreateSecretCpSvcKey(context, kymaSystem, cpSvcKeySecretName, encodedSrk); err != nil {
+		return fmt.Errorf("unable to create '%s' secret: %w", cpSvcKeySecretName, err)
+	}
+
+	if err := prepareOverridesFor280(context, bindingSecret, certificate); err != nil {
+		return errors.Wrap(err, "Error - cannot prepare overrides")
 	}
 
 	caClient, err := connectivityclient.NewConnectivityCAClient(context.Task.Configuration)
@@ -113,5 +140,54 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Error during reconciliation")
 	}
 
+	return nil
+}
+
+func newEncodedSecretSvcKey(secretRootKey string, binding *v1.Secret) (string, error) {
+	if secretRootKeyProvided := secretRootKey != ""; secretRootKeyProvided {
+		data, found := binding.Data[secretRootKey]
+		if !found {
+			return "", fmt.Errorf("%w: %s", ErrValueNotFound, secretRootKey)
+		}
+
+		return string(data), nil
+	}
+
+	var srk svcKey
+	if err := srk.fromSecret(binding); err != nil {
+		return "", err
+	}
+
+	out, err := json.Marshal(&srk)
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
+var ErrValueNotFound = errors.New("value not found")
+
+func prepareOverridesFor280(actionCtx *service.ActionContext, secret *v1.Secret, caData []byte) error {
+	for _, item := range [][2]string{
+		{"subaccount_id", "config.subaccountId"},
+		{"subaccount_subdomain", "config.subaccountSubdomain"},
+	} {
+		val, found := secret.Data[item[0]]
+		if !found {
+			return fmt.Errorf("%w: %s", ErrValueNotFound, val)
+		}
+		actionCtx.Task.Configuration[item[1]] = string(val)
+	}
+
+	xtHost := actionCtx.Task.Configuration[tagHost].(string)
+
+	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalHost"] = fmt.Sprintf("cc-proxy.%s", xtHost)
+	actionCtx.Task.Configuration["secretConfig.integration.connectivityService.secretName"] = "connectivity-proxy-service-key"
+	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalPort"] = "443"
+	actionCtx.Task.Configuration["config.serviceMappings.configMapName"] = mappingsConfigMap
+	actionCtx.Task.Configuration["config.serviceMappings.tlsSecret"] = smSecretName
+
+	encoded := base64.StdEncoding.EncodeToString([]byte(caData))
+	actionCtx.Task.Configuration["deployment.serviceMapping.caBundle"] = encoded
 	return nil
 }

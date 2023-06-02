@@ -394,6 +394,9 @@ func TestCommandRemove(t *testing.T) {
 		client.On("DeleteResource", actionContext.Context, "configmap", mappingsConfigMap, kymaSystem).
 			Return(nil, nil)
 
+		client.On("DeleteResource", actionContext.Context, "secret", cpSvcKeySecretName, kymaSystem).
+			Return(nil, nil)
+
 		actionContext.KubeClient = client
 
 		commands := CommandActions{

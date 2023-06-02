@@ -55,6 +55,10 @@ func TestAction(t *testing.T) {
 			Name:      "test-binding-secret",
 			Namespace: "default",
 		},
+		Data: map[string][]byte{
+			"subaccount_id":        []byte("test"),
+			"subaccount_subdomain": []byte("me"),
+		},
 	}
 	statefulset := &v1apps.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -74,9 +78,10 @@ func TestAction(t *testing.T) {
 		loader.On("FindSecret", context, binding).Return(secret, nil)
 
 		commands.On("CreateCARootSecret", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
-		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return(nil, nil)
+		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return([]byte("testme"), nil)
 		commands.On("Apply", context, false).Return(nil)
 		commands.On("CreateServiceMappingConfigMap", context, "kyma-system", "connectivity-proxy-service-mappings").Return(nil)
+		commands.On("CreateSecretCpSvcKey", context, "kyma-system", "connectivity-proxy-service-key", mock.Anything).Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)
@@ -111,7 +116,7 @@ func TestAction(t *testing.T) {
 		kubeClient.On("GetHost").Return("test host")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(statefulset, nil)
 
-		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return(nil, nil)
+		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return([]byte("testme"), nil)
 		commands.On("CreateServiceMappingConfigMap", context, "kyma-system", "connectivity-proxy-service-mappings").Return(nil)
 
 		loader.On("FindBindingOperator", context).Return(binding, nil)
@@ -119,6 +124,7 @@ func TestAction(t *testing.T) {
 
 		commands.On("CreateCARootSecret", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
 		commands.On("Apply", context, true).Return(nil)
+		commands.On("CreateSecretCpSvcKey", context, "kyma-system", "connectivity-proxy-service-key", mock.Anything).Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)

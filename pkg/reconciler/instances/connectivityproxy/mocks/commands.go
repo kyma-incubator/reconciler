@@ -43,20 +43,34 @@ func (_m *Commands) CreateCARootSecret(_a0 *service.ActionContext, _a1 connectiv
 	return r0
 }
 
+// CreateSecretCpSvcKey provides a mock function with given fields: ctx, ns, secretName, cpSvcKey
+func (_m *Commands) CreateSecretCpSvcKey(ctx *service.ActionContext, ns string, secretName string, cpSvcKey string) error {
+	ret := _m.Called(ctx, ns, secretName, cpSvcKey)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*service.ActionContext, string, string, string) error); ok {
+		r0 = rf(ctx, ns, secretName, cpSvcKey)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // CreateSecretMappingOperator provides a mock function with given fields: _a0, _a1
-func (_m *Commands) CreateSecretMappingOperator(_a0 *service.ActionContext, _a1 string) (map[string][]byte, error) {
+func (_m *Commands) CreateSecretMappingOperator(_a0 *service.ActionContext, _a1 string) ([]byte, error) {
 	ret := _m.Called(_a0, _a1)
 
-	var r0 map[string][]byte
+	var r0 []byte
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*service.ActionContext, string) (map[string][]byte, error)); ok {
+	if rf, ok := ret.Get(0).(func(*service.ActionContext, string) ([]byte, error)); ok {
 		return rf(_a0, _a1)
 	}
-	if rf, ok := ret.Get(0).(func(*service.ActionContext, string) map[string][]byte); ok {
+	if rf, ok := ret.Get(0).(func(*service.ActionContext, string) []byte); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string][]byte)
+			r0 = ret.Get(0).([]byte)
 		}
 	}
 
