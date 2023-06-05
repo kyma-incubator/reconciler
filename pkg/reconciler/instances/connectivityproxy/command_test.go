@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func TestCommans_CreateCARootSecret(t *testing.T) {
@@ -342,6 +343,56 @@ func TestCommands_PopulateConfig(t *testing.T) {
 	})
 }
 
+func TestCommandRemove_mappings_exist(t *testing.T) {
+	t.Setenv("GIT_CLONE_TOKEN", "token")
+
+	t.Run("Should remove correct component", func(t *testing.T) {
+
+		task := &reconciler.Task{
+			Component: "test-component",
+			Namespace: "default",
+			Version:   "test-version",
+			Profile:   "test-profile",
+		}
+
+		provider := &chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
+			Return(&chart.Manifest{
+				Type:     chart.HelmChart,
+				Name:     task.Component,
+				Manifest: "test-manifest",
+			}, nil)
+
+		actionContext := &service.ActionContext{
+			Context:       context.Background(),
+			ChartProvider: provider,
+			Task:          task,
+		}
+
+		client := &mocks.Client{}
+
+		client.On("ListResource", actionContext.Context, "servicemappings.connectivityproxy.sap.com", mock.Anything).
+			Return(&unstructured.UnstructuredList{
+				Items: []unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"test": "me",
+						},
+					},
+				},
+			}, nil)
+
+		actionContext.KubeClient = client
+
+		commands := CommandActions{
+			install: nil,
+		}
+
+		err := commands.Remove(actionContext)
+		require.Error(t, err)
+	})
+}
+
 func TestCommandRemove(t *testing.T) {
 	t.Setenv("GIT_CLONE_TOKEN", "token")
 
@@ -396,6 +447,9 @@ func TestCommandRemove(t *testing.T) {
 
 		client.On("DeleteResource", actionContext.Context, "secret", cpSvcKeySecretName, kymaSystem).
 			Return(nil, nil)
+
+		client.On("ListResource", actionContext.Context, "servicemappings.connectivityproxy.sap.com", mock.Anything).
+			Return(&unstructured.UnstructuredList{}, nil)
 
 		actionContext.KubeClient = client
 

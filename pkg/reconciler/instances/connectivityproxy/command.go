@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	apiCoreV1 "k8s.io/api/core/v1"
 	errk8s "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
 )
 
@@ -168,6 +169,14 @@ func (a *CommandActions) CreateCARootSecret(context *service.ActionContext, caCl
 }
 
 func (a *CommandActions) Remove(context *service.ActionContext) error {
+	mappings, err := context.KubeClient.ListResource(context.Context, "servicemappings.connectivityproxy.sap.com", metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	if len(mappings.Items) > 0 {
+		return fmt.Errorf("%w: unable to delete connectivity-proxy, servicemappings detected", ErrReconciliationAborted)
+	}
+
 	component := chart.NewComponentBuilder(context.Task.Version, context.Task.Component).
 		WithNamespace(context.Task.Namespace).
 		WithProfile(context.Task.Profile).
