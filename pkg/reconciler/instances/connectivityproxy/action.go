@@ -22,6 +22,8 @@ type CustomAction struct {
 	Commands Commands
 }
 
+var ErrReconciliationAborted = errors.New("reconciliation aborted")
+
 func (a *CustomAction) Run(context *service.ActionContext) error {
 	context.Logger.Debug("Staring invocation of " + context.Task.Component + " reconciliation")
 
