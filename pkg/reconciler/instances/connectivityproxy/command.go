@@ -181,7 +181,7 @@ func (a *CommandActions) preRemoveCheck(context *service.ActionContext) error {
 		return nil
 	}
 	// check if any servicemapping CR is available on a cluster
-	mappings, err := context.KubeClient.ListResource(context.Context, "servicemappings.connectivityproxy.sap.com", metav1.ListOptions{})
+	mappings, err := context.KubeClient.ListResource(context.Context, "servicemappings", metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

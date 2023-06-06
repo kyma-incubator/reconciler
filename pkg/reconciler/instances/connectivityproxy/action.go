@@ -175,8 +175,8 @@ type overridePair struct {
 var (
 	ErrValueNotFound        = errors.New("value not found")
 	subaccountOverridePairs = []overridePair{
-		{from: "subaccount_id", to: "config.subaccountid"},
-		{from: "subaccount_subdomain", to: "config.subaccountsubdomain"},
+		{from: "subaccount_id", to: "config.subaccountId"},
+		{from: "subaccount_subdomain", to: "config.subaccountSubdomain"},
 	}
 )
 
