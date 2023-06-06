@@ -121,7 +121,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		return fmt.Errorf("unable to create '%s' secret: %w", cpSvcKeySecretName, err)
 	}
 
-	if err := prepareOverridesFor280(context, bindingSecret, certificate); err != nil {
+	if err := prepareOverridesFor280(context, bindingSecret, certificate, secretRootKey); err != nil {
 		return errors.Wrap(err, "Error - cannot prepare overrides")
 	}
 
@@ -167,18 +167,60 @@ func newEncodedSecretSvcKey(secretRootKey string, binding *v1.Secret) (string, e
 	return string(out), nil
 }
 
-var ErrValueNotFound = errors.New("value not found")
+type overridePair struct {
+	from string
+	to   string
+}
 
-func prepareOverridesFor280(actionCtx *service.ActionContext, secret *v1.Secret, caData []byte) error {
-	for _, item := range [][2]string{
-		{"subaccount_id", "config.subaccountId"},
-		{"subaccount_subdomain", "config.subaccountSubdomain"},
-	} {
-		val, found := secret.Data[item[0]]
+var (
+	ErrValueNotFound        = errors.New("value not found")
+	subaccountOverridePairs = []overridePair{
+		{from: "subaccount_id", to: "config.subaccountid"},
+		{from: "subaccount_subdomain", to: "config.subaccountsubdomain"},
+	}
+)
+
+func overrideFromValue(config map[string]interface{}, value []byte) error {
+	var data map[string]interface{}
+	if err := json.Unmarshal(value, &data); err != nil {
+		return err
+	}
+
+	for _, item := range subaccountOverridePairs {
+		val, found := data[item.from]
 		if !found {
 			return fmt.Errorf("%w: %s", ErrValueNotFound, val)
 		}
-		actionCtx.Task.Configuration[item[1]] = string(val)
+		config[item.to] = fmt.Sprintf("%s", val)
+	}
+	return nil
+}
+
+func overrideFromSecret(config map[string]interface{}, secret *v1.Secret) error {
+	for _, item := range subaccountOverridePairs {
+		val, found := secret.Data[item.from]
+		if !found {
+			return fmt.Errorf("%w: %s", ErrValueNotFound, val)
+		}
+		config[item.to] = string(val)
+	}
+	return nil
+}
+
+func prepareOverridesFor280(actionCtx *service.ActionContext, secret *v1.Secret, caData []byte, secretRootKey string) error {
+	overrideSubaccountProperties := func() error {
+		return overrideFromSecret(actionCtx.Task.Configuration, secret)
+	}
+
+	val, found := secret.Data[secretRootKey]
+	if found {
+		overrideSubaccountProperties = func() error {
+			return overrideFromValue(actionCtx.Task.Configuration, val)
+		}
+	}
+
+	if err := overrideSubaccountProperties(); err != nil {
+		return err
 	}
 
 	xtHost := actionCtx.Task.Configuration[tagHost].(string)
