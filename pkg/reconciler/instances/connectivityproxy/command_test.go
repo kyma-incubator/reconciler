@@ -346,7 +346,7 @@ func TestCommands_PopulateConfig(t *testing.T) {
 func TestCommandRemove_mappings_exist(t *testing.T) {
 	t.Setenv("GIT_CLONE_TOKEN", "token")
 
-	t.Run("Should remove correct component", func(t *testing.T) {
+	t.Run("Should not remove component if mapping exist", func(t *testing.T) {
 
 		task := &reconciler.Task{
 			Component: "test-component",
@@ -370,6 +370,17 @@ func TestCommandRemove_mappings_exist(t *testing.T) {
 		}
 
 		client := &mocks.Client{}
+
+		client.On("ListResource", actionContext.Context, "customresourcedefinitions", mock.Anything).
+			Return(&unstructured.UnstructuredList{
+				Items: []unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"test": "me",
+						},
+					},
+				},
+			}, nil)
 
 		client.On("ListResource", actionContext.Context, "servicemappings.connectivityproxy.sap.com", mock.Anything).
 			Return(&unstructured.UnstructuredList{
@@ -447,6 +458,17 @@ func TestCommandRemove(t *testing.T) {
 
 		client.On("DeleteResource", actionContext.Context, "secret", cpSvcKeySecretName, kymaSystem).
 			Return(nil, nil)
+
+		client.On("ListResource", actionContext.Context, "customresourcedefinitions", mock.Anything).
+			Return(&unstructured.UnstructuredList{
+				Items: []unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"test": "me",
+						},
+					},
+				},
+			}, nil)
 
 		client.On("ListResource", actionContext.Context, "servicemappings.connectivityproxy.sap.com", mock.Anything).
 			Return(&unstructured.UnstructuredList{}, nil)

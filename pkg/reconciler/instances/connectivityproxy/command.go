@@ -168,13 +168,32 @@ func (a *CommandActions) CreateCARootSecret(context *service.ActionContext, caCl
 	return nil
 }
 
-func (a *CommandActions) Remove(context *service.ActionContext) error {
+func (a *CommandActions) preRemoveCheck(context *service.ActionContext) error {
+	// make sure mappings are installed
+	crds, err := context.KubeClient.ListResource(context.Context, "customresourcedefinitions", metav1.ListOptions{
+		FieldSelector: "metadata.name=servicemappings.connectivityproxy.sap.com",
+	})
+	if err != nil {
+		return err
+	}
+	// servicemappings are not available on a cluster
+	if len(crds.Items) == 0 {
+		return nil
+	}
+	// check if any servicemapping CR is available on a cluster
 	mappings, err := context.KubeClient.ListResource(context.Context, "servicemappings.connectivityproxy.sap.com", metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	if len(mappings.Items) > 0 {
 		return fmt.Errorf("%w: unable to delete connectivity-proxy, servicemappings detected", ErrReconciliationAborted)
+	}
+	return nil
+}
+
+func (a *CommandActions) Remove(context *service.ActionContext) error {
+	if err := a.preRemoveCheck(context); err != nil {
+		return err
 	}
 
 	component := chart.NewComponentBuilder(context.Task.Version, context.Task.Component).

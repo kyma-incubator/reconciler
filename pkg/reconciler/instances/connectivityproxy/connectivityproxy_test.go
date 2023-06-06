@@ -26,5 +26,5 @@ func Test_newEncodedSecretSvcKey(t *testing.T) {
 		Data: data,
 	})
 	require.NoError(t, err)
-	require.Equal(t,string(data[secretRootKey]),actual)
+	require.Equal(t, string(data[secretRootKey]), actual)
 }
