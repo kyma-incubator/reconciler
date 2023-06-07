@@ -1,11 +1,7 @@
 package connectivityproxy_test
 
 import (
-	"errors"
 	"testing"
-
-	"github.com/stretchr/testify/mock"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -13,9 +9,12 @@ import (
 	connectivityproxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/mocks"
 	kubeMocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

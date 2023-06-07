@@ -151,8 +151,14 @@ func newEncodedSecretSvcKey(secretRootKey string, binding *v1.Secret) (string, e
 		if !found {
 			return "", fmt.Errorf("%w: %s", ErrValueNotFound, secretRootKey)
 		}
+		// workaround for BTP secretRootKey serialization bug
+		var s btpSvcKey
+		if err := json.Unmarshal(data, &s); err != nil {
+			return "", err
+		}
 
-		return string(data), nil
+		out, err := json.Marshal(&s)
+		return string(out), err
 	}
 
 	var srk svcKey
@@ -173,31 +179,27 @@ type overridePair struct {
 }
 
 var (
-	ErrValueNotFound        = errors.New("value not found")
-	subaccountOverridePairs = []overridePair{
-		{from: "subaccount_id", to: "config.subaccountId"},
-		{from: "subaccount_subdomain", to: "config.subaccountSubdomain"},
-	}
+	ErrValueNotFound          = errors.New("value not found")
+	configSubaccountID        = "config.subaccountId"
+	configSubaccountSubdomain = "config.subaccountSubdomain"
 )
 
 func overrideFromValue(config map[string]interface{}, value []byte) error {
-	var data map[string]interface{}
+	var data btpSvcKey
 	if err := json.Unmarshal(value, &data); err != nil {
 		return err
 	}
 
-	for _, item := range subaccountOverridePairs {
-		val, found := data[item.from]
-		if !found {
-			return fmt.Errorf("%w: %s", ErrValueNotFound, val)
-		}
-		config[item.to] = fmt.Sprintf("%s", val)
-	}
+	config[configSubaccountID] = data.SubaccountID
+	config[configSubaccountSubdomain] = data.SubaccountSubdomain
 	return nil
 }
 
 func overrideFromSecret(config map[string]interface{}, secret *v1.Secret) error {
-	for _, item := range subaccountOverridePairs {
+	for _, item := range []overridePair{
+		{from: "subaccount_id", to: configSubaccountID},
+		{from: "subaccount_subdomain", to: configSubaccountSubdomain},
+	} {
 		val, found := secret.Data[item.from]
 		if !found {
 			return fmt.Errorf("%w: %s", ErrValueNotFound, val)
