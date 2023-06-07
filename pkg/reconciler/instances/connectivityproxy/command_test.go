@@ -382,7 +382,7 @@ func TestCommandRemove_mappings_exist(t *testing.T) {
 				},
 			}, nil)
 
-		client.On("ListResource", actionContext.Context, "servicemappings.connectivityproxy.sap.com", mock.Anything).
+		client.On("ListResource", actionContext.Context, "servicemappings", mock.Anything).
 			Return(&unstructured.UnstructuredList{
 				Items: []unstructured.Unstructured{
 					{
@@ -470,7 +470,7 @@ func TestCommandRemove(t *testing.T) {
 				},
 			}, nil)
 
-		client.On("ListResource", actionContext.Context, "servicemappings.connectivityproxy.sap.com", mock.Anything).
+		client.On("ListResource", actionContext.Context, "servicemappings", mock.Anything).
 			Return(&unstructured.UnstructuredList{}, nil)
 
 		actionContext.KubeClient = client
