@@ -1,6 +1,7 @@
 package connectivityproxy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	apiCoreV1 "k8s.io/api/core/v1"
 	errk8s "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
 )
 
@@ -29,7 +31,8 @@ const (
 type Commands interface {
 	Apply(*service.ActionContext, bool) error
 	CreateCARootSecret(*service.ActionContext, connectivityclient.ConnectivityClient) error
-	CreateSecretMappingOperator(*service.ActionContext, string) (map[string][]byte, error)
+	CreateSecretMappingOperator(*service.ActionContext, string) ([]byte, error)
+	CreateSecretCpSvcKey(ctx *service.ActionContext, ns, secretName, cpSvcKey string) error
 	Remove(*service.ActionContext) error
 	CreateServiceMappingConfigMap(ctx *service.ActionContext, ns, configMapName string) error
 }
@@ -97,7 +100,7 @@ func flatValues(configuration map[string]interface{}, key string, value []byte) 
 	}
 }
 
-func (a *CommandActions) CreateSecretMappingOperator(s *service.ActionContext, ns string) (map[string][]byte, error) {
+func (a *CommandActions) CreateSecretMappingOperator(s *service.ActionContext, ns string) ([]byte, error) {
 	cs, err := s.KubeClient.Clientset()
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot get a target cluster client set")
@@ -112,11 +115,36 @@ func (a *CommandActions) CreateSecretMappingOperator(s *service.ActionContext, n
 		return nil, err
 	}
 
-	return repo.SaveSecretMappingOperator(
+	secretData, err := repo.SaveSecretMappingOperator(
 		s.Context,
 		mappingOperatorSecretName,
 		data[0],
 		data[1],
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	caData, found := secretData[secrets.TagTLSCa]
+	if !found {
+		return nil, fmt.Errorf("not found: %s in %s/%s", secrets.TagTLSCa, kymaSystem, smSecretName)
+	}
+
+	return caData, nil
+}
+
+func (a *CommandActions) CreateSecretCpSvcKey(ctx *service.ActionContext, ns, secretName, cpSvcKey string) error {
+	clientset, err := ctx.KubeClient.Clientset()
+	if err != nil {
+		return errors.Wrap(err, "cannot get a target cluster client set")
+	}
+
+	repo := secrets.NewSecretRepo(ns, clientset)
+	return repo.SaveSecretCpSvcKey(
+		ctx.Context,
+		secretName,
+		cpSvcKey,
 	)
 }
 
@@ -133,14 +161,41 @@ func (a *CommandActions) CreateCARootSecret(context *service.ActionContext, caCl
 		return errors.Wrap(err, "cannot get a target cluster client set")
 	}
 
-	if err := makeIstioCASecret(context.Task, clientset, ca); err != nil {
+	if err := makeIstioCASecret(context.Context, context.Task, clientset, ca); err != nil {
 		return errors.Wrap(err, "cannot create Istio CA secret")
 	}
 
 	return nil
 }
 
+func (a *CommandActions) preRemoveCheck(context *service.ActionContext) error {
+	// make sure mappings are installed
+	crds, err := context.KubeClient.ListResource(context.Context, "customresourcedefinitions", metav1.ListOptions{
+		FieldSelector: "metadata.name=servicemappings.connectivityproxy.sap.com",
+	})
+	if err != nil {
+		return err
+	}
+	// servicemappings are not available on a cluster
+	if len(crds.Items) == 0 {
+		return nil
+	}
+	// check if any servicemapping CR is available on a cluster
+	mappings, err := context.KubeClient.ListResource(context.Context, "servicemappings", metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	if len(mappings.Items) > 0 {
+		return fmt.Errorf("%w: unable to delete connectivity-proxy, servicemappings detected", ErrReconciliationAborted)
+	}
+	return nil
+}
+
 func (a *CommandActions) Remove(context *service.ActionContext) error {
+	if err := a.preRemoveCheck(context); err != nil {
+		return err
+	}
+
 	component := chart.NewComponentBuilder(context.Task.Version, context.Task.Component).
 		WithNamespace(context.Task.Namespace).
 		WithProfile(context.Task.Profile).
@@ -212,6 +267,7 @@ func removeCpResources(context *service.ActionContext) error {
 		{name: "cc-certs-cacert", ns: "istio-system", t: rscTypeSecret},
 		{name: mappingOperatorSecretName, ns: kymaSystem, t: rscTypeSecret},
 		{name: mappingsConfigMap, ns: kymaSystem, t: rscTypeConfigmap},
+		{name: cpSvcKeySecretName, ns: kymaSystem, t: rscTypeSecret},
 	} {
 		if err := removeResource(context, rscInfo.t, rscInfo.name, rscInfo.ns); err != nil {
 			errs = append(errs, err)
@@ -221,7 +277,7 @@ func removeCpResources(context *service.ActionContext) error {
 	return aggregateErrors(errs)
 }
 
-func makeIstioCASecret(task *reconciler.Task, targetClientSet k8s.Interface, ca []byte) error {
+func makeIstioCASecret(ctx context.Context, task *reconciler.Task, targetClientSet k8s.Interface, ca []byte) error {
 
 	namespace, secretKey, secretName, err := getIstioSecretCfg(task.Configuration)
 
@@ -230,7 +286,7 @@ func makeIstioCASecret(task *reconciler.Task, targetClientSet k8s.Interface, ca 
 	}
 
 	repo := secrets.NewSecretRepo(namespace, targetClientSet)
-	return repo.SaveIstioCASecret(secretName, secretKey, ca)
+	return repo.SaveIstioCASecret(ctx, secretName, secretKey, ca)
 }
 
 func getIstioSecretCfg(config map[string]interface{}) (string, string, string, error) {

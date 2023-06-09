@@ -30,6 +30,23 @@ func NewSecretRepo(namespace string, targetClientSet k8s.Interface) *SecretRepo 
 	}
 }
 
+func (r SecretRepo) SaveSecretCpSvcKey(ctx context.Context, name, key string) error {
+
+	secret := &coreV1.Secret{
+		TypeMeta: v1.TypeMeta{Kind: "Secret"},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      name,
+			Namespace: r.Namespace,
+		},
+		Data: map[string][]byte{
+			"service_key": []byte(key),
+		},
+		Type: coreV1.SecretTypeOpaque,
+	}
+
+	return r.upsertK8SSecret(ctx, secret)
+}
+
 func (r SecretRepo) SaveSecretMappingOperator(ctx context.Context, name string, key, crt []byte) (map[string][]byte, error) {
 	// TODO make sure to do a certificate expiration check
 	secret, err := r.TargetClientSet.
@@ -67,7 +84,7 @@ func (r SecretRepo) SaveSecretMappingOperator(ctx context.Context, name string, 
 	return secret.Data, err
 }
 
-func (r SecretRepo) SaveIstioCASecret(name string, key string, ca []byte) error {
+func (r SecretRepo) SaveIstioCASecret(ctx context.Context, name string, key string, ca []byte) error {
 
 	secret := &coreV1.Secret{
 		TypeMeta: v1.TypeMeta{Kind: "Secret"},
@@ -82,14 +99,14 @@ func (r SecretRepo) SaveIstioCASecret(name string, key string, ca []byte) error 
 		Type:       coreV1.SecretTypeOpaque,
 	}
 
-	return r.upsertK8SSecret(secret)
+	return r.upsertK8SSecret(ctx, secret)
 }
 
-func (r SecretRepo) upsertK8SSecret(secret *coreV1.Secret) error {
+func (r SecretRepo) upsertK8SSecret(ctx context.Context, secret *coreV1.Secret) error {
 
 	err := r.TargetClientSet.CoreV1().
 		Secrets(r.Namespace).
-		Delete(context.Background(), secret.Name, v1.DeleteOptions{})
+		Delete(ctx, secret.Name, v1.DeleteOptions{})
 
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return err
@@ -97,7 +114,7 @@ func (r SecretRepo) upsertK8SSecret(secret *coreV1.Secret) error {
 
 	_, err = r.TargetClientSet.CoreV1().
 		Secrets(r.Namespace).
-		Create(context.Background(), secret, v1.CreateOptions{})
+		Create(ctx, secret, v1.CreateOptions{})
 
 	return err
 }
