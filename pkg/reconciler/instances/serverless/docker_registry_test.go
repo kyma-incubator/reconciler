@@ -3,10 +3,9 @@ package serverless
 import (
 	"context"
 	rkubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"testing"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"testing"
 
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes"
@@ -135,8 +134,8 @@ func TestServerlessReconciliation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			var err error
-			k8sClient, action, actionContext := setup()
-
+			k8sClient, actionContext := setup()
+			action := PreserveDockerRegistrySecret{}
 			//GIVEN
 			if tc.existingSecret != nil {
 				_, err := createSecret(actionContext.Context, k8sClient, tc.existingSecret)
@@ -203,10 +202,9 @@ func fixedDeploymentWith(annotations map[string]string, envs []corev1.EnvVar) *a
 	}
 }
 
-func setup() (kubernetes.Interface, ReconcileCustomAction, *service.ActionContext) {
+func setup() (kubernetes.Interface, *service.ActionContext) {
 	k8sClient := fake.NewSimpleClientset()
 
-	action := ReconcileCustomAction{}
 	mockClient := mocks.Client{}
 	mockClient.On("Clientset").Return(k8sClient, nil)
 	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*rkubernetes.Resource{}, nil)
@@ -224,5 +222,5 @@ func setup() (kubernetes.Interface, ReconcileCustomAction, *service.ActionContex
 		ChartProvider: &mockProvider,
 		Task:          &reconciler.Task{Version: "test", Configuration: configuration},
 	}
-	return k8sClient, action, actionContext
+	return k8sClient, actionContext
 }

@@ -2,6 +2,7 @@ package serverless
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
@@ -19,7 +20,9 @@ func init() {
 
 	//configure reconciler
 	reconciler.
-		WithReconcileAction(&ReconcileCustomAction{
-			name: "preserve-docker-registry-secret",
-		})
+		WithReconcileAction(actions.NewActionAggregate(
+			&PreserveDockerRegistrySecret{
+				name: "preserve-docker-registry-secret",
+			},
+			&ResolveDockerRegistryNodePort{}))
 }

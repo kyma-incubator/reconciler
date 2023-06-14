@@ -15,11 +15,11 @@ const (
 	registryHTTPEnvKey                     = "REGISTRY_HTTP_SECRET"
 )
 
-type ReconcileCustomAction struct {
+type PreserveDockerRegistrySecret struct {
 	name string
 }
 
-func (a *ReconcileCustomAction) Run(svcCtx *service.ActionContext) error {
+func (a *PreserveDockerRegistrySecret) Run(svcCtx *service.ActionContext) error {
 
 	logger := svcCtx.Logger
 	k8sClient, err := svcCtx.KubeClient.Clientset()
