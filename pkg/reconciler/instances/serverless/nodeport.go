@@ -28,7 +28,10 @@ const (
 	dockerRegistryPortName     = "http-registry"
 )
 
+type nodePortFinder func() int32
+
 type ResolveDockerRegistryNodePort struct {
+	nodePortFinder
 }
 
 func (n ResolveDockerRegistryNodePort) Run(svcCtx *service.ActionContext) error {
@@ -56,7 +59,7 @@ func (n ResolveDockerRegistryNodePort) Run(svcCtx *service.ActionContext) error 
 	}
 
 	if possibleConflict(svcs) {
-		newPort, err := drawEmptyPortNumber(svcs)
+		newPort, err := n.drawEmptyPortNumber(svcs)
 		if err != nil {
 			return errors.Wrap(err, "while drawing available port number")
 		}
@@ -95,7 +98,7 @@ func isDefaultNodePortValue(svc *corev1.Service) bool {
 	return false
 }
 
-func drawEmptyPortNumber(svcs *corev1.ServiceList) (int32, error) {
+func (n *ResolveDockerRegistryNodePort) drawEmptyPortNumber(svcs *corev1.ServiceList) (int32, error) {
 	nodePorts := map[int32]struct{}{}
 	for _, svc := range svcs.Items {
 		for _, port := range svc.Spec.Ports {
@@ -106,7 +109,7 @@ func drawEmptyPortNumber(svcs *corev1.ServiceList) (int32, error) {
 	retries := 100
 	var emptyPort int32 = 0
 	for i := 0; i < retries; i++ {
-		possibleEmptyPort := findNumber(minNodePort, maxNodePort)
+		possibleEmptyPort := n.nodePortFinder()
 		if _, ok := nodePorts[possibleEmptyPort]; !ok {
 			emptyPort = possibleEmptyPort
 			break
@@ -116,11 +119,6 @@ func drawEmptyPortNumber(svcs *corev1.ServiceList) (int32, error) {
 		return 0, errors.New("couldn't draw available port number, try again")
 	}
 	return emptyPort, nil
-}
-
-func findNumber(minRange, maxRange int32) int32 {
-	number := rand.Int31n(maxRange - minRange)
-	return minRange + number
 }
 
 func setNodePortOverride(overrides map[string]interface{}, path string, port int32) {
@@ -152,4 +150,9 @@ func possibleConflict(svcs *corev1.ServiceList) bool {
 		}
 	}
 	return false
+}
+
+func randomNodePort() int32 {
+	number := rand.Int31n(maxNodePort - minNodePort)
+	return minNodePort + number
 }

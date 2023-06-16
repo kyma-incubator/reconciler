@@ -24,5 +24,7 @@ func init() {
 			&PreserveDockerRegistrySecret{
 				name: "preserve-docker-registry-secret",
 			},
-			&ResolveDockerRegistryNodePort{}))
+			&ResolveDockerRegistryNodePort{
+				randomNodePort,
+			}))
 }

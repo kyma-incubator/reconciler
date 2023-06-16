@@ -19,19 +19,27 @@ func TestNodePortAction(t *testing.T) {
 		assertFn     assertFn
 	}{
 		"Don't set override when nodePort installed on default port": {
-			givenService: fixtureServiceNodePort(dockerRegistryService, dockerRegistryNodePort),
+			givenService: fixtureServiceNodePort(dockerRegistryService, "", dockerRegistryNodePort),
 			assertFn:     assertNoOverride(),
 		},
 		"Set override when nodePort service installed on different port": {
-			givenService: fixtureServiceNodePort(dockerRegistryService, nonConflictPort),
+			givenService: fixtureServiceNodePort(dockerRegistryService, "", nonConflictPort),
 			assertFn:     assertOverride(nonConflictPort),
 		},
 		"Don't set override when nodePort not installed, without port conflict": {
 			assertFn: assertNoOverride(),
 		},
 		"Set override when nodePort not installed, with port conflict": {
-			givenService: fixtureServiceNodePort("conflicting-svc", dockerRegistryNodePort),
+			givenService: fixtureServiceNodePort("conflicting-svc", "", dockerRegistryNodePort),
 			assertFn:     assertGeneratedPortOverride(),
+		},
+		"Don't set override when service is ClusterIP before upgrade without port conflict": {
+			givenService: fixtureServiceClusterIP(dockerRegistryService),
+			assertFn:     assertNoOverride(),
+		},
+		"Set override when cluster has NodePort service in different namespace with port conflict": {
+			givenService: fixtureServiceNodePort(dockerRegistryService, "different-ns", dockerRegistryNodePort),
+			assertFn:     assertNoOverride(),
 		},
 	}
 
@@ -41,7 +49,7 @@ func TestNodePortAction(t *testing.T) {
 			occupiedPorts := map[int32]struct{}{}
 
 			k8sClient, actionContext := setup()
-			action := ResolveDockerRegistryNodePort{}
+			action := ResolveDockerRegistryNodePort{fixedNodePort(nonConflictPort)}
 			if testCase.givenService != nil {
 				_, err := k8sClient.CoreV1().Services(actionContext.Task.Namespace).Create(context.TODO(), testCase.givenService, metav1.CreateOptions{})
 				require.NoError(t, err)
@@ -87,12 +95,12 @@ func assertOverride(port int32) assertFn {
 	}
 }
 
-func fixtureServiceNodePort(name string, nodePort int32) *corev1.Service {
+func fixtureServiceNodePort(name, namespace string, nodePort int32) *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: "",
+			Namespace: namespace,
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeNodePort,
@@ -102,13 +110,28 @@ func fixtureServiceNodePort(name string, nodePort int32) *corev1.Service {
 	}
 }
 
+func fixtureServiceClusterIP(name string) *corev1.Service {
+	return &corev1.Service{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "",
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeNodePort,
+			Ports: []corev1.ServicePort{
+				{Name: dockerRegistryPortName, Port: 5000}},
+		},
+	}
+}
+
 func fixtureServices(T *testing.T, k8sClient kubernetes.Interface, namespace string, occupiedPorts map[int32]struct{}) {
-	svc := fixtureServiceNodePort("other-node-port", dockerRegistryNodePort-1)
+	svc := fixtureServiceNodePort("other-node-port", "", dockerRegistryNodePort-1)
 	_, err := k8sClient.CoreV1().Services(namespace).Create(context.TODO(), svc, metav1.CreateOptions{})
 	require.NoError(T, err)
 	occupiedPorts[dockerRegistryNodePort-1] = struct{}{}
 
-	svc = fixtureServiceNodePort("many-ports", dockerRegistryNodePort+2)
+	svc = fixtureServiceNodePort("many-ports", "", dockerRegistryNodePort+2)
 	occupiedPorts[dockerRegistryNodePort+2] = struct{}{}
 	svc.Spec.Ports = append(svc.Spec.Ports, corev1.ServicePort{
 		Name:     "test",
@@ -118,4 +141,10 @@ func fixtureServices(T *testing.T, k8sClient kubernetes.Interface, namespace str
 	_, err = k8sClient.CoreV1().Services(namespace).Create(context.TODO(), svc, metav1.CreateOptions{})
 	require.NoError(T, err)
 	occupiedPorts[33333] = struct{}{}
+}
+
+func fixedNodePort(expectedPort int32) func() int32 {
+	return func() int32 {
+		return expectedPort
+	}
 }
