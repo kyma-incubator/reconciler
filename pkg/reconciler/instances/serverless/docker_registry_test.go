@@ -2,25 +2,14 @@ package serverless
 
 import (
 	"context"
-	rkubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
 
-	"github.com/stretchr/testify/mock"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/fake"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
-	pmock "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -200,27 +189,4 @@ func fixedDeploymentWith(annotations map[string]string, envs []corev1.EnvVar) *a
 			},
 		},
 	}
-}
-
-func setup() (kubernetes.Interface, *service.ActionContext) {
-	k8sClient := fake.NewSimpleClientset()
-
-	mockClient := mocks.Client{}
-	mockClient.On("Clientset").Return(k8sClient, nil)
-	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*rkubernetes.Resource{}, nil)
-	configuration := map[string]interface{}{}
-	mockProvider := pmock.Provider{}
-	mockManifest := chart.Manifest{
-		Manifest: "",
-	}
-	mockProvider.On("RenderManifest", mock.Anything).Return(&mockManifest, nil)
-
-	actionContext := &service.ActionContext{
-		KubeClient:    &mockClient,
-		Context:       context.TODO(),
-		Logger:        logger.NewLogger(false),
-		ChartProvider: &mockProvider,
-		Task:          &reconciler.Task{Version: "test", Configuration: configuration},
-	}
-	return k8sClient, actionContext
 }

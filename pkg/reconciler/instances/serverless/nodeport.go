@@ -26,6 +26,8 @@ const (
 	dockerRegistryService      = "serverless-docker-registry"
 	dockerRegistryNodePortPath = "global.registryNodePort"
 	dockerRegistryPortName     = "http-registry"
+
+	allNamespaces = ""
 )
 
 type nodePortFinder func() int32
@@ -44,7 +46,7 @@ func (n ResolveDockerRegistryNodePort) Run(svcCtx *service.ActionContext) error 
 		return errors.Wrap(err, fmt.Sprintf("while checking if %s service is installed on cluster", dockerRegistryService))
 	}
 
-	if svc != nil {
+	if svc != nil && svc.Spec.Type == corev1.ServiceTypeNodePort {
 		if isDefaultNodePortValue(svc) {
 			return nil
 		}
@@ -126,8 +128,7 @@ func setNodePortOverride(overrides map[string]interface{}, path string, port int
 }
 
 func getAllNodePortServices(ctx context.Context, k8sClient kubernetes.Interface, namespace string) (*corev1.ServiceList, error) {
-
-	svcs, err := k8sClient.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
+	svcs, err := k8sClient.CoreV1().Services(allNamespaces).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "while getting list of all services")
 	}

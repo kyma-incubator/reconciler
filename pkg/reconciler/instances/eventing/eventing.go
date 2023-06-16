@@ -1,4 +1,4 @@
-package eventing
+package eventingservice
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
