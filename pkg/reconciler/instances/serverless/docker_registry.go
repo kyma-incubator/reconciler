@@ -42,7 +42,7 @@ func (a *PreserveDockerRegistrySecret) Run(svcCtx *service.ActionContext) error 
 			setOverridesFromDeployment(deployment, svcCtx.Task.Configuration)
 		}
 	}
-	return service.NewInstall(svcCtx.Logger).Invoke(svcCtx.Context, svcCtx.ChartProvider, svcCtx.Task, svcCtx.KubeClient)
+	return nil
 }
 
 func setOverridesFromDeployment(deployment *appsv1.Deployment, configuration map[string]interface{}) {

@@ -34,6 +34,7 @@ type nodePortFinder func() int32
 
 type ResolveDockerRegistryNodePort struct {
 	nodePortFinder
+	name string
 }
 
 func (n ResolveDockerRegistryNodePort) Run(svcCtx *service.ActionContext) error {

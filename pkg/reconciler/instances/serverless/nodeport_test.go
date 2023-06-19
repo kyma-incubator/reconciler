@@ -119,8 +119,7 @@ func fixtureServiceClusterIP(name, namespace string) *corev1.Service {
 			Namespace: namespace,
 		},
 		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeClusterIPs
-			git,
+			Type: corev1.ServiceTypeClusterIP,
 			Ports: []corev1.ServicePort{
 				{Name: dockerRegistryPortName, Port: 5000}},
 		},
