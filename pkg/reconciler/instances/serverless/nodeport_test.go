@@ -51,7 +51,7 @@ func TestNodePortAction(t *testing.T) {
 
 			k8sClient, actionContext := setup()
 			actionContext.Task.Namespace = KymaNamespace
-			action := ResolveDockerRegistryNodePort{fixedNodePort(nonConflictPort)}
+			action := ResolveDockerRegistryNodePort{nodePortFinder: fixedNodePort(nonConflictPort)}
 			if testCase.givenService != nil {
 				_, err := k8sClient.CoreV1().Services(testCase.givenService.Namespace).Create(context.TODO(), testCase.givenService, metav1.CreateOptions{})
 				require.NoError(t, err)
