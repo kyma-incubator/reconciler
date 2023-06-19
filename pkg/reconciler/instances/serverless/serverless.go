@@ -19,7 +19,12 @@ func init() {
 
 	//configure reconciler
 	reconciler.
-		WithReconcileAction(&ReconcileCustomAction{
-			name: "preserve-docker-registry-secret",
-		})
+		WithReconcileAction(NewInstallActionAggregate(
+			&PreserveDockerRegistrySecret{
+				name: "preserve-docker-registry-secret",
+			},
+			&ResolveDockerRegistryNodePort{
+				name:           "resolve-docker-registry-node-port",
+				nodePortFinder: randomNodePort,
+			}))
 }

@@ -15,11 +15,11 @@ const (
 	registryHTTPEnvKey                     = "REGISTRY_HTTP_SECRET"
 )
 
-type ReconcileCustomAction struct {
+type PreserveDockerRegistrySecret struct {
 	name string
 }
 
-func (a *ReconcileCustomAction) Run(svcCtx *service.ActionContext) error {
+func (a *PreserveDockerRegistrySecret) Run(svcCtx *service.ActionContext) error {
 
 	logger := svcCtx.Logger
 	k8sClient, err := svcCtx.KubeClient.Clientset()
@@ -42,7 +42,7 @@ func (a *ReconcileCustomAction) Run(svcCtx *service.ActionContext) error {
 			setOverridesFromDeployment(deployment, svcCtx.Task.Configuration)
 		}
 	}
-	return service.NewInstall(svcCtx.Logger).Invoke(svcCtx.Context, svcCtx.ChartProvider, svcCtx.Task, svcCtx.KubeClient)
+	return nil
 }
 
 func setOverridesFromDeployment(deployment *appsv1.Deployment, configuration map[string]interface{}) {

@@ -2,26 +2,14 @@ package serverless
 
 import (
 	"context"
-	rkubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"testing"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/stretchr/testify/mock"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/fake"
+	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
-	pmock "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -135,8 +123,8 @@ func TestServerlessReconciliation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			var err error
-			k8sClient, action, actionContext := setup()
-
+			k8sClient, actionContext := setup()
+			action := PreserveDockerRegistrySecret{}
 			//GIVEN
 			if tc.existingSecret != nil {
 				_, err := createSecret(actionContext.Context, k8sClient, tc.existingSecret)
@@ -201,28 +189,4 @@ func fixedDeploymentWith(annotations map[string]string, envs []corev1.EnvVar) *a
 			},
 		},
 	}
-}
-
-func setup() (kubernetes.Interface, ReconcileCustomAction, *service.ActionContext) {
-	k8sClient := fake.NewSimpleClientset()
-
-	action := ReconcileCustomAction{}
-	mockClient := mocks.Client{}
-	mockClient.On("Clientset").Return(k8sClient, nil)
-	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*rkubernetes.Resource{}, nil)
-	configuration := map[string]interface{}{}
-	mockProvider := pmock.Provider{}
-	mockManifest := chart.Manifest{
-		Manifest: "",
-	}
-	mockProvider.On("RenderManifest", mock.Anything).Return(&mockManifest, nil)
-
-	actionContext := &service.ActionContext{
-		KubeClient:    &mockClient,
-		Context:       context.TODO(),
-		Logger:        logger.NewLogger(false),
-		ChartProvider: &mockProvider,
-		Task:          &reconciler.Task{Version: "test", Configuration: configuration},
-	}
-	return k8sClient, action, actionContext
 }
