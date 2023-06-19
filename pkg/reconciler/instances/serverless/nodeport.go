@@ -56,7 +56,7 @@ func (n ResolveDockerRegistryNodePort) Run(svcCtx *service.ActionContext) error 
 		return nil
 	}
 
-	svcs, err := getAllNodePortServices(svcCtx.Context, k8sClient, svcCtx.Task.Namespace)
+	svcs, err := getAllNodePortServices(svcCtx.Context, k8sClient)
 	if err != nil {
 		return errors.Wrap(err, "while fetching all services from cluster")
 	}
@@ -110,7 +110,7 @@ func (n *ResolveDockerRegistryNodePort) drawEmptyPortNumber(svcs *corev1.Service
 	}
 
 	retries := 100
-	var emptyPort int32 = 0
+	var emptyPort int32
 	for i := 0; i < retries; i++ {
 		possibleEmptyPort := n.nodePortFinder()
 		if _, ok := nodePorts[possibleEmptyPort]; !ok {
@@ -128,7 +128,7 @@ func setNodePortOverride(overrides map[string]interface{}, path string, port int
 	overrides[path] = port
 }
 
-func getAllNodePortServices(ctx context.Context, k8sClient kubernetes.Interface, namespace string) (*corev1.ServiceList, error) {
+func getAllNodePortServices(ctx context.Context, k8sClient kubernetes.Interface) (*corev1.ServiceList, error) {
 	svcs, err := k8sClient.CoreV1().Services(allNamespaces).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "while getting list of all services")
