@@ -227,7 +227,7 @@ func prepareOverridesFor280(actionCtx *service.ActionContext, secret *v1.Secret,
 
 	xtHost := actionCtx.Task.Configuration[tagHost].(string)
 
-	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalHost"] = fmt.Sprintf("cc-proxy.%s", xtHost)
+	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalHost"] = fmt.Sprintf("cp.%s", xtHost)
 	actionCtx.Task.Configuration["secretConfig.integration.connectivityService.secretName"] = "connectivity-proxy-service-key"
 	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalPort"] = "443"
 	actionCtx.Task.Configuration["config.serviceMappings.configMapName"] = mappingsConfigMap
