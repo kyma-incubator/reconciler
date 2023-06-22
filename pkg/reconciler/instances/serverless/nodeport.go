@@ -138,6 +138,14 @@ func getAllNodePortServices(ctx context.Context, k8sClient kubernetes.Interface)
 		if svc.Spec.Type == corev1.ServiceTypeNodePort {
 			nodePortSvcs.Items = append(nodePortSvcs.Items, svc)
 		}
+		if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
+			for _, port := range svc.Spec.Ports {
+				if port.NodePort != 0 {
+					nodePortSvcs.Items = append(nodePortSvcs.Items, svc)
+					break
+				}
+			}
+		}
 	}
 	return nodePortSvcs, nil
 }
