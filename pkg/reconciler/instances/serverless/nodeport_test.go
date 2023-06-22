@@ -43,6 +43,10 @@ func TestNodePortAction(t *testing.T) {
 			givenService: fixtureServiceNodePort(dockerRegistryService, "different-ns", dockerRegistryNodePort),
 			assertFn:     assertGeneratedPortOverride(),
 		},
+		"Set override when cluster has LoadBalancer service in different namespace with port conflict": {
+			givenService: fixtureLoadBalancer(),
+			assertFn:     assertGeneratedPortOverride(),
+		},
 	}
 
 	for testName, testCase := range testCases {
@@ -144,5 +148,28 @@ func fixtureServices(T *testing.T, k8sClient kubernetes.Interface, namespace str
 func fixedNodePort(expectedPort int32) func() int32 {
 	return func() int32 {
 		return expectedPort
+	}
+}
+
+func fixtureLoadBalancer() *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "istio-ingressgateway",
+			Namespace: "istio-system",
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeLoadBalancer,
+			Ports: []corev1.ServicePort{
+				{
+					NodePort: dockerRegistryNodePort,
+					Name:     "http2",
+				},
+				{
+					NodePort: 30857,
+					Name:     "https",
+				},
+			},
+		},
+		Status: corev1.ServiceStatus{},
 	}
 }
