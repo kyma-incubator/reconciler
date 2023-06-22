@@ -3,7 +3,7 @@ FROM europe-docker.pkg.dev/kyma-project/prod/external/istio/istioctl:1.17.3 AS i
 FROM europe-docker.pkg.dev/kyma-project/prod/external/istio/istioctl:1.18.0 AS istio-1_18_0
 
 # Build image
-FROM golang:1.20.4-alpine3.17 AS build
+FROM golang:1.20.5-alpine3.17 AS build
 
 ENV SRC_DIR=/go/src/github.com/kyma-incubator/reconciler
 COPY . $SRC_DIR
