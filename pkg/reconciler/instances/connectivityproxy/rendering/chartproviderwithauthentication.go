@@ -32,6 +32,10 @@ func (cp ChartProviderWithAuthentication) WithFilter(filter chart.Filter) chart.
 	}
 }
 
+func (cp ChartProviderWithAuthentication) RenderCRDFiltered(version string, excluded []string) ([]*chart.Manifest, error) {
+	return cp.provider.RenderCRDFiltered(version, excluded)
+}
+
 func (cp ChartProviderWithAuthentication) RenderCRD(version string) ([]*chart.Manifest, error) {
 	return cp.provider.RenderCRD(version)
 }
