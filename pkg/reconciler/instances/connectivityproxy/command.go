@@ -35,6 +35,7 @@ type Commands interface {
 	CreateSecretCpSvcKey(ctx *service.ActionContext, ns, secretName, cpSvcKey string) error
 	Remove(*service.ActionContext) error
 	CreateServiceMappingConfigMap(ctx *service.ActionContext, ns, configMapName string) error
+	PatchConfigMap(ctx *service.ActionContext, ns, configMapName string) error
 }
 
 type CommandActions struct {
@@ -319,4 +320,15 @@ func (a *CommandActions) CreateServiceMappingConfigMap(svcActionCtx *service.Act
 	}
 
 	return configmaps.NewConfigMapRepo(ns, clientset).CreateServiceMappingConfig(svcActionCtx.Context, configMapName)
+}
+
+// PatchConfigMap function corrects the exposed channel's url. Previous versions used cc-proxy prefix, and now we use cp prefix.
+// As the configuration config map is not applied if it exists (reconciler.kyma-project.io/skip-rendering-on-upgrade annotation), we must change update the url
+func (a *CommandActions) PatchConfigMap(ctx *service.ActionContext, ns, configMapName string) error {
+	clientset, err := ctx.KubeClient.Clientset()
+	if err != nil {
+		return errors.Wrap(err, "cannot get a target cluster client set")
+	}
+
+	return configmaps.NewConfigMapRepo(ns, clientset).PatchConfiguration("kyma-system")
 }
