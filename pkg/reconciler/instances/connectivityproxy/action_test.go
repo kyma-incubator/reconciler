@@ -81,6 +81,7 @@ func TestAction(t *testing.T) {
 		commands.On("Apply", context, false).Return(nil)
 		commands.On("CreateServiceMappingConfigMap", context, "kyma-system", "connectivity-proxy-service-mappings").Return(nil)
 		commands.On("CreateSecretCpSvcKey", context, "kyma-system", "connectivity-proxy-service-key", mock.Anything).Return(nil)
+		commands.On("PatchConfigMap", context, "kyma-system", "connectivity-proxy").Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)
@@ -124,6 +125,7 @@ func TestAction(t *testing.T) {
 		commands.On("CreateCARootSecret", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
 		commands.On("Apply", context, true).Return(nil)
 		commands.On("CreateSecretCpSvcKey", context, "kyma-system", "connectivity-proxy-service-key", mock.Anything).Return(nil)
+		commands.On("PatchConfigMap", context, "kyma-system", "connectivity-proxy").Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)

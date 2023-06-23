@@ -121,7 +121,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		return fmt.Errorf("unable to create '%s' secret: %w", cpSvcKeySecretName, err)
 	}
 
-	if err := prepareOverridesFor280(context, bindingSecret, certificate, secretRootKey); err != nil {
+	if err := prepareOverrides(context, bindingSecret, certificate, secretRootKey); err != nil {
 		return errors.Wrap(err, "Error - cannot prepare overrides")
 	}
 
@@ -140,6 +140,10 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 
 	if err := a.Commands.Apply(context, refresh); err != nil {
 		return errors.Wrap(err, "Error during reconciliation")
+	}
+
+	if err := a.Commands.PatchConfigMap(context, "kyma-system", "connectivity-proxy"); err != nil {
+		return errors.Wrap(err, "Error while patching Connectivity Proxy's configuration")
 	}
 
 	return nil
@@ -209,7 +213,7 @@ func overrideFromSecret(config map[string]interface{}, secret *v1.Secret) error 
 	return nil
 }
 
-func prepareOverridesFor280(actionCtx *service.ActionContext, secret *v1.Secret, caData []byte, secretRootKey string) error {
+func prepareOverrides(actionCtx *service.ActionContext, secret *v1.Secret, caData []byte, secretRootKey string) error {
 	overrideSubaccountProperties := func() error {
 		return overrideFromSecret(actionCtx.Task.Configuration, secret)
 	}

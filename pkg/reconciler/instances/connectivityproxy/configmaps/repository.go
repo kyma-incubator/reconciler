@@ -2,10 +2,12 @@ package configmaps
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	coreV1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
+	"strings"
 )
 
 type ConfigMapRepo struct {
@@ -60,4 +62,35 @@ func (cmr ConfigMapRepo) createConfigMap(ctx context.Context, cm *coreV1.ConfigM
 		Create(context.Background(), cm, v1.CreateOptions{})
 
 	return err
+}
+
+func (cmr ConfigMapRepo) PatchConfiguration(namespace string) error {
+	configMap, err := cmr.TargetClientSet.CoreV1().ConfigMaps(namespace).Get(context.Background(), "connectivity-proxy", v1.GetOptions{})
+	if err != nil && k8serrors.IsNotFound(err) {
+		// ConfigMap is not created yet, nothing to do
+		return nil
+	}
+
+	if err != nil {
+		return errors.Wrap(err, "cannot get a target cluster client set")
+	}
+
+	config, ok := configMap.Data["connectivity-proxy-config.yml"]
+	if !ok {
+		return errors.Wrap(err, "cannot find configuration key in the config map")
+	}
+
+	newConfig := strings.Replace(config, "cc-proxy.", "cp.", -1)
+	if newConfig == config {
+		// Already replaced, nothing to do
+		return nil
+	}
+
+	configMap.Data["connectivity-proxy-config.yml"] = newConfig
+	_, err = cmr.TargetClientSet.CoreV1().ConfigMaps(namespace).Update(context.Background(), configMap, v1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
