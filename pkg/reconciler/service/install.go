@@ -153,7 +153,7 @@ func (r *Install) ignoreIstioCRD(task *reconciler.Task) bool {
 	}
 	_, err = kubeClient.Resource(gvr).List(context.Background(), v1.ListOptions{})
 	if err == nil {
-		r.logger.Infof("Found obviously migrated Istio CRD '%.%s:%s'", kind, group, version)
+		r.logger.Infof("Found obviously migrated Istio CRD '%s.%s:%s'", kind, group, version)
 		return true
 	} else if !k8serr.IsNotFound(err) {
 		r.logger.Errorf("Failed to retrieve CRD '%s.%s:%s': %s", kind, group, version, err)
