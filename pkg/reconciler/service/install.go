@@ -110,6 +110,7 @@ func (r *Install) renderCRDs(chartProvider chart.Provider, model *reconciler.Tas
 	var crdManifests []*chart.Manifest
 	var err error
 	if r.ignoreIstioCRD(model) {
+		r.logger.Info("Istio CRDs will be ignored from reconciliation")
 		crdManifests, err = chartProvider.RenderCRDFiltered(model.Version, []string{"istio"})
 	} else {
 		crdManifests, err = chartProvider.RenderCRD(model.Version)
