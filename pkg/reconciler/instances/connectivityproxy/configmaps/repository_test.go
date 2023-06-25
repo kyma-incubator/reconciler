@@ -12,43 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-func TestConfigmapRepository(t *testing.T) {
-
-	cmToPatch := `
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  annotations:
-    reconciler.kyma-project.io/skip-rendering-on-upgrade: "true"
-  labels:
-    connectivityproxy.sap.com/restart: connectivity-proxy.kyma-system
-  name: connectivity-proxy
-  namespace: test-namespace
-data:
-  connectivity-proxy-config.yml: | 
-    highAvailabilityMode: "off"
-    integration:
-      auditlog:
-        mode: console
-      connectivityService:
-        serviceCredentialsKey: service_key
-    servers:
-      businessDataTunnel:
-        externalHost: cc-proxy.example.com
-        externalPort: 443
-      proxy:
-        http:
-          enableProxyAuthorization: false
-          enabled: true
-        rfcAndLdap:
-          enableProxyAuthorization: false
-          enabled: true
-        socks5:
-          enableProxyAuthorization: false
-          enabled: true
-    subaccountId: subaccountId
-    subaccountSubdomain: subaccountSubdomain
-    tenantMode: dedicated`
+func TestCreatingServiceMappingsConfigMap(t *testing.T) {
 
 	t.Run("Should create service mapping configmap", func(t *testing.T) {
 
@@ -102,35 +66,93 @@ data:
 		require.NoError(t, err)
 		require.Equal(t, expectedData, actual.Data)
 	})
+}
 
-	t.Run("Should patch configuration configmap", func(t *testing.T) {
-		// given
-		expectedHost := "cp.example.com"
+func TestFixingConfiguration(t *testing.T) {
+	t.Run("Should not attempt to fix configuration if configmap doesn't exist", func(t *testing.T) {
 		fakeClientSet := fake.NewSimpleClientset()
 		repo := NewConfigMapRepo("test-namespace", fakeClientSet)
 
 		// when
-		err := repo.PatchConfiguration("test-namespace")
+		err := repo.FixConfiguration("test-namespace", "connectivity-proxy")
 
 		// then
 		require.NoError(t, err)
+	})
 
+	t.Run("Should return error when config map lacks expected key", func(t *testing.T) {
 		// given
+		fakeClientSet := fake.NewSimpleClientset()
+
+		configMap := &coreV1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "connectivity-proxy",
+				Namespace: "test-namespace",
+			},
+			Data: nil,
+		}
+
+		_, err := fakeClientSet.CoreV1().ConfigMaps("test-namespace").Create(context.Background(), configMap, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		repo := NewConfigMapRepo("test-namespace", fakeClientSet)
+
+		// when
+		err = repo.FixConfiguration("test-namespace", "connectivity-proxy")
+
+		// then
+		require.Error(t, err)
+	})
+
+	cmToFix := `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations:
+    reconciler.kyma-project.io/skip-rendering-on-upgrade: "true"
+  labels:
+    connectivityproxy.sap.com/restart: connectivity-proxy.kyma-system
+  name: connectivity-proxy
+  namespace: test-namespace
+data:
+  connectivity-proxy-config.yml: | 
+    highAvailabilityMode: "off"
+    integration:
+      auditlog:
+        mode: console
+      connectivityService:
+        serviceCredentialsKey: service_key
+    servers:
+      businessDataTunnel:
+        externalHost: cc-proxy.example.com
+        externalPort: 443
+      proxy:
+        http:
+          enableProxyAuthorization: false
+          enabled: true
+        rfcAndLdap:
+          enableProxyAuthorization: false
+          enabled: true
+        socks5:
+          enableProxyAuthorization: false
+          enabled: true
+    subaccountId: subaccountId
+    subaccountSubdomain: subaccountSubdomain
+    tenantMode: dedicated`
+
+	createConfigMapFunc := func(fakeClientSet *fake.Clientset) {
 		decode := scheme.Codecs.UniversalDeserializer().Decode
-		obj, _, err := decode([]byte(cmToPatch), nil, nil)
+		obj, _, err := decode([]byte(cmToFix), nil, nil)
 		require.NoError(t, err)
 
 		configMap := obj.(*coreV1.ConfigMap)
 
 		_, err = fakeClientSet.CoreV1().ConfigMaps("test-namespace").Create(context.Background(), configMap, metav1.CreateOptions{})
 		require.NoError(t, err)
+	}
 
-		// when
-		err = repo.PatchConfiguration("test-namespace")
-
-		// then
-		require.NoError(t, err)
-
+	getExternalHostFromConfigMap := func(fakeClientSet *fake.Clientset) string {
 		updatedConfigMap, err := fakeClientSet.CoreV1().ConfigMaps("test-namespace").Get(context.Background(), "connectivity-proxy", metav1.GetOptions{})
 		require.NoError(t, err)
 
@@ -147,6 +169,34 @@ data:
 
 		err = yaml.Unmarshal([]byte(configYaml), s)
 		require.NoError(t, err)
-		require.Equal(t, expectedHost, s.Servers.BusinessDataTunnel.ExternalHost)
+
+		return s.Servers.BusinessDataTunnel.ExternalHost
+	}
+
+	t.Run("Should attempt to fix configuration configmap", func(t *testing.T) {
+		// given
+		expectedHost := "cp.example.com"
+		fakeClientSet := fake.NewSimpleClientset()
+		repo := NewConfigMapRepo("test-namespace", fakeClientSet)
+
+		createConfigMapFunc(fakeClientSet)
+
+		// when
+		err := repo.FixConfiguration("test-namespace", "connectivity-proxy")
+
+		// then
+		require.NoError(t, err)
+
+		actualExternalHost := getExternalHostFromConfigMap(fakeClientSet)
+		require.Equal(t, expectedHost, actualExternalHost)
+
+		// when
+		err = repo.FixConfiguration("test-namespace", "connectivity-proxy")
+
+		// then
+		require.NoError(t, err)
+
+		actualExternalHost = getExternalHostFromConfigMap(fakeClientSet)
+		require.Equal(t, expectedHost, actualExternalHost)
 	})
 }

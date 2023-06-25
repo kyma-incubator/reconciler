@@ -97,13 +97,13 @@ func (_m *Commands) CreateServiceMappingConfigMap(ctx *service.ActionContext, ns
 	return r0
 }
 
-// PatchConfigMap provides a mock function with given fields: ctx, ns, configMapName
-func (_m *Commands) PatchConfigMap(ctx *service.ActionContext, ns string, configMapName string) error {
-	ret := _m.Called(ctx, ns, configMapName)
+// PatchConfigMap provides a mock function with given fields: ctx, ns, name
+func (_m *Commands) FixConfiguration(ctx *service.ActionContext, ns string, name string) error {
+	ret := _m.Called(ctx, ns, name)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(*service.ActionContext, string, string) error); ok {
-		r0 = rf(ctx, ns, configMapName)
+		r0 = rf(ctx, ns, name)
 	} else {
 		r0 = ret.Error(0)
 	}

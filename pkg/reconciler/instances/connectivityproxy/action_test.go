@@ -59,6 +59,7 @@ func TestAction(t *testing.T) {
 			"subaccount_subdomain": []byte("me"),
 		},
 	}
+
 	statefulset := &v1apps.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-stateful-set",
@@ -81,7 +82,6 @@ func TestAction(t *testing.T) {
 		commands.On("Apply", context, false).Return(nil)
 		commands.On("CreateServiceMappingConfigMap", context, "kyma-system", "connectivity-proxy-service-mappings").Return(nil)
 		commands.On("CreateSecretCpSvcKey", context, "kyma-system", "connectivity-proxy-service-key", mock.Anything).Return(nil)
-		commands.On("PatchConfigMap", context, "kyma-system", "connectivity-proxy").Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)
@@ -111,7 +111,6 @@ func TestAction(t *testing.T) {
 
 	t.Run("Should refresh app when both binding and app exists", func(t *testing.T) {
 		kubeClient, context, action, loader, commands := setupActionTestEnv()
-		kubeClient.On("Clientset").Return(nil)
 
 		kubeClient.On("GetHost").Return("test host")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(statefulset, nil)
@@ -125,12 +124,12 @@ func TestAction(t *testing.T) {
 		commands.On("CreateCARootSecret", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
 		commands.On("Apply", context, true).Return(nil)
 		commands.On("CreateSecretCpSvcKey", context, "kyma-system", "connectivity-proxy-service-key", mock.Anything).Return(nil)
-		commands.On("PatchConfigMap", context, "kyma-system", "connectivity-proxy").Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)
 		commands.AssertExpectations(t)
 		loader.AssertExpectations(t)
+		kubeClient.AssertExpectations(t)
 	})
 
 	t.Run("Should do nothing when binding and app are missing ", func(t *testing.T) {
@@ -157,6 +156,40 @@ func TestAction(t *testing.T) {
 
 		loader.On("FindBindingOperator", context).Return(binding, nil)
 		loader.On("FindSecret", context, binding).Return(nil, errors.New("some error"))
+
+		err := action.Run(context)
+		require.NoError(t, err)
+
+		commands.AssertExpectations(t)
+		loader.AssertExpectations(t)
+		kubeClient.AssertExpectations(t)
+	})
+
+	t.Run("Should patch config map for version 2.9.2", func(t *testing.T) {
+
+		statefulset := &v1apps.StatefulSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-stateful-set",
+				Namespace: "default",
+				Labels:    map[string]string{"chart": "connectivity-proxy-2.9.2"},
+			},
+		}
+
+		kubeClient, context, action, loader, commands := setupActionTestEnv()
+
+		kubeClient.On("GetHost").Return("test host")
+		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(statefulset, nil)
+
+		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return([]byte("testme"), nil)
+		commands.On("CreateServiceMappingConfigMap", context, "kyma-system", "connectivity-proxy-service-mappings").Return(nil)
+
+		loader.On("FindBindingOperator", context).Return(binding, nil)
+		loader.On("FindSecret", context, binding).Return(secret, nil)
+
+		commands.On("CreateCARootSecret", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
+		commands.On("Apply", context, true).Return(nil)
+		commands.On("CreateSecretCpSvcKey", context, "kyma-system", "connectivity-proxy-service-key", mock.Anything).Return(nil)
+		commands.On("FixConfiguration", context, "kyma-system", "connectivity-proxy").Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	v1apps "k8s.io/api/apps/v1"
 	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -16,12 +17,15 @@ import (
 )
 
 const (
-	tagHost                   = "global.kubeHost"
-	kymaSystem                = "kyma-system"
-	mappingOperatorSecretName = "connectivity-sm-operator-secrets-tls" // #nosec G101
-	mappingsConfigMap         = "connectivity-proxy-service-mappings"
-	cpSvcKeySecretName        = "connectivity-proxy-service-key"       // #nosec G101
-	smSecretName              = "connectivity-sm-operator-secrets-tls" // #nosec G101
+	tagHost                        = "global.kubeHost"
+	kymaSystem                     = "kyma-system"
+	mappingOperatorSecretName      = "connectivity-sm-operator-secrets-tls" // #nosec G101
+	mappingsConfigMap              = "connectivity-proxy-service-mappings"
+	cpSvcKeySecretName             = "connectivity-proxy-service-key"       // #nosec G101
+	smSecretName                   = "connectivity-sm-operator-secrets-tls" // #nosec G101
+	versionKey                     = "chart"
+	versionToApplyConfigurationFix = "connectivity-proxy-2.9.2"
+	configurationConfigMap         = "connectivity-proxy"
 )
 
 type CustomAction struct {
@@ -142,8 +146,25 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Error during reconciliation")
 	}
 
-	if err := a.Commands.PatchConfigMap(context, "kyma-system", "connectivity-proxy"); err != nil {
-		return errors.Wrap(err, "Error while patching Connectivity Proxy's configuration")
+	if err := a.fixConfigurationIfNeeded(context, app); err != nil {
+		return errors.Wrap(err, "Error fixing configuration")
+	}
+
+	return nil
+}
+
+// After the Connectivity Proxy was upgraded to 2.9.2 we must fix the configuration mismatch. After the upgrade the configuration will contain incorrect tunnel's URL (it will start with cc-proxy, not cp as expected)
+// As the configuration config map is not applied if it exists (reconciler.kyma-project.io/skip-rendering-on-upgrade annotation), we must update the URL.
+// There is no need to perform the fix, if the version installed on the environment is other that 2.9.2
+func (a *CustomAction) fixConfigurationIfNeeded(context *service.ActionContext, app *v1apps.StatefulSet) error {
+	if app == nil {
+		return nil
+	}
+
+	labels := app.GetLabels()
+	if labels != nil && labels[versionKey] == versionToApplyConfigurationFix {
+		context.Logger.Warn("Fixing Connectivity Proxy configuration...")
+		return a.Commands.FixConfiguration(context, kymaSystem, configurationConfigMap)
 	}
 
 	return nil

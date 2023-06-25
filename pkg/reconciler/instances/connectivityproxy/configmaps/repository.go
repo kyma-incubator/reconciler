@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+const (
+	configurationKey = "connectivity-proxy-config.yml"
+)
+
 type ConfigMapRepo struct {
 	Namespace       string
 	TargetClientSet k8s.Interface
@@ -64,29 +68,31 @@ func (cmr ConfigMapRepo) createConfigMap(ctx context.Context, cm *coreV1.ConfigM
 	return err
 }
 
-func (cmr ConfigMapRepo) PatchConfiguration(namespace string) error {
-	configMap, err := cmr.TargetClientSet.CoreV1().ConfigMaps(namespace).Get(context.Background(), "connectivity-proxy", v1.GetOptions{})
+// FixConfiguration function corrects the exposed channel's url. Previous versions used cc-proxy prefix, and now we use cp prefix.
+// This is 2.9.2 specific.
+func (cmr ConfigMapRepo) FixConfiguration(namespace, name string) error {
+	configMap, err := cmr.TargetClientSet.CoreV1().ConfigMaps(namespace).Get(context.Background(), name, v1.GetOptions{})
 	if err != nil && k8serrors.IsNotFound(err) {
 		// ConfigMap is not created yet, nothing to do
 		return nil
 	}
 
 	if err != nil {
-		return errors.Wrap(err, "cannot get a target cluster client set")
+		return errors.Wrap(err, "cannot get config map")
 	}
 
-	config, ok := configMap.Data["connectivity-proxy-config.yml"]
+	config, ok := configMap.Data[configurationKey]
 	if !ok {
-		return errors.Wrap(err, "cannot find configuration key in the config map")
+		return errors.New("cannot find configuration key in the config map")
 	}
 
-	newConfig := strings.Replace(config, "cc-proxy.", "cp.", -1)
+	newConfig := strings.Replace(config, "externalHost: cc-proxy.", "externalHost: cp.", -1)
 	if newConfig == config {
 		// Already replaced, nothing to do
 		return nil
 	}
 
-	configMap.Data["connectivity-proxy-config.yml"] = newConfig
+	configMap.Data[configurationKey] = newConfig
 	_, err = cmr.TargetClientSet.CoreV1().ConfigMaps(namespace).Update(context.Background(), configMap, v1.UpdateOptions{})
 	if err != nil {
 		return err
