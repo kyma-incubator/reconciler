@@ -330,5 +330,5 @@ func (a *CommandActions) FixConfiguration(ctx *service.ActionContext, ns, name s
 		return errors.Wrap(err, "cannot get a target cluster client set")
 	}
 
-	return configmaps.NewConfigMapRepo(ns, clientset).FixConfiguration("kyma-system", name)
+	return configmaps.NewConfigMapRepo(ns, clientset).FixConfiguration(ns, name)
 }
