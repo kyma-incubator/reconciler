@@ -16,12 +16,15 @@ import (
 )
 
 const (
-	tagHost                   = "global.kubeHost"
-	kymaSystem                = "kyma-system"
-	mappingOperatorSecretName = "connectivity-sm-operator-secrets-tls" // #nosec G101
-	mappingsConfigMap         = "connectivity-proxy-service-mappings"
-	cpSvcKeySecretName        = "connectivity-proxy-service-key"       // #nosec G101
-	smSecretName              = "connectivity-sm-operator-secrets-tls" // #nosec G101
+	tagHost                        = "global.kubeHost"
+	kymaSystem                     = "kyma-system"
+	mappingOperatorSecretName      = "connectivity-sm-operator-secrets-tls" // #nosec G101
+	mappingsConfigMap              = "connectivity-proxy-service-mappings"
+	cpSvcKeySecretName             = "connectivity-proxy-service-key"       // #nosec G101
+	smSecretName                   = "connectivity-sm-operator-secrets-tls" // #nosec G101
+	versionKey                     = "chart"
+	versionToApplyConfigurationFix = "connectivity-proxy-2.9.2"
+	configurationConfigMap         = "connectivity-proxy"
 )
 
 type CustomAction struct {
@@ -121,7 +124,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		return fmt.Errorf("unable to create '%s' secret: %w", cpSvcKeySecretName, err)
 	}
 
-	if err := prepareOverridesFor280(context, bindingSecret, certificate, secretRootKey); err != nil {
+	if err := prepareOverrides(context, bindingSecret, certificate, secretRootKey); err != nil {
 		return errors.Wrap(err, "Error - cannot prepare overrides")
 	}
 
@@ -140,6 +143,30 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 
 	if err := a.Commands.Apply(context, refresh); err != nil {
 		return errors.Wrap(err, "Error during reconciliation")
+	}
+
+	if refresh {
+		if err := a.fixConfigurationIfNeeded(context); err != nil {
+			return errors.Wrap(err, "Error fixing configuration")
+		}
+	}
+
+	return nil
+}
+
+// After the Connectivity Proxy was upgraded to 2.9.2 we must fix the configuration mismatch. After the upgrade the configuration will contain incorrect tunnel's URL (it will start with cc-proxy, not cp as expected)
+// As the configuration config map is not applied if it exists (reconciler.kyma-project.io/skip-rendering-on-upgrade annotation), we must update the URL.
+// There is no need to perform the fix, if the version installed on the environment is other that 2.9.2
+func (a *CustomAction) fixConfigurationIfNeeded(context *service.ActionContext) error {
+	app, err := context.KubeClient.GetStatefulSet(context.Context, context.Task.Component, context.Task.Namespace)
+	if err != nil {
+		return errors.Wrap(err, "Error while retrieving StatefulSet")
+	}
+
+	labels := app.GetLabels()
+	if labels != nil && labels[versionKey] == versionToApplyConfigurationFix {
+		context.Logger.Warn("Fixing Connectivity Proxy configuration...")
+		return a.Commands.FixConfiguration(context, kymaSystem, configurationConfigMap)
 	}
 
 	return nil
@@ -209,7 +236,7 @@ func overrideFromSecret(config map[string]interface{}, secret *v1.Secret) error 
 	return nil
 }
 
-func prepareOverridesFor280(actionCtx *service.ActionContext, secret *v1.Secret, caData []byte, secretRootKey string) error {
+func prepareOverrides(actionCtx *service.ActionContext, secret *v1.Secret, caData []byte, secretRootKey string) error {
 	overrideSubaccountProperties := func() error {
 		return overrideFromSecret(actionCtx.Task.Configuration, secret)
 	}
@@ -227,7 +254,7 @@ func prepareOverridesFor280(actionCtx *service.ActionContext, secret *v1.Secret,
 
 	xtHost := actionCtx.Task.Configuration[tagHost].(string)
 
-	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalHost"] = fmt.Sprintf("cc-proxy.%s", xtHost)
+	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalHost"] = fmt.Sprintf("cp.%s", xtHost)
 	actionCtx.Task.Configuration["secretConfig.integration.connectivityService.secretName"] = "connectivity-proxy-service-key"
 	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalPort"] = "443"
 	actionCtx.Task.Configuration["config.serviceMappings.configMapName"] = mappingsConfigMap

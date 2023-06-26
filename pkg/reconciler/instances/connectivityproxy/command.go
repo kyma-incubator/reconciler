@@ -35,6 +35,7 @@ type Commands interface {
 	CreateSecretCpSvcKey(ctx *service.ActionContext, ns, secretName, cpSvcKey string) error
 	Remove(*service.ActionContext) error
 	CreateServiceMappingConfigMap(ctx *service.ActionContext, ns, configMapName string) error
+	FixConfiguration(ctx *service.ActionContext, ns, name string) error
 }
 
 type CommandActions struct {
@@ -319,4 +320,15 @@ func (a *CommandActions) CreateServiceMappingConfigMap(svcActionCtx *service.Act
 	}
 
 	return configmaps.NewConfigMapRepo(ns, clientset).CreateServiceMappingConfig(svcActionCtx.Context, configMapName)
+}
+
+// FixConfiguration function corrects the config map to make sure certificate domain, and Connectivity Proxy's configuration match.
+// This is 2.9.2 specific.
+func (a *CommandActions) FixConfiguration(ctx *service.ActionContext, ns, name string) error {
+	clientset, err := ctx.KubeClient.Clientset()
+	if err != nil {
+		return errors.Wrap(err, "cannot get a target cluster client set")
+	}
+
+	return configmaps.NewConfigMapRepo(ns, clientset).FixConfiguration(ns, name)
 }
