@@ -152,11 +152,8 @@ data:
 		require.NoError(t, err)
 	}
 
-	getExternalHostFromConfigMap := func(fakeClientSet *fake.Clientset) string {
-		updatedConfigMap, err := fakeClientSet.CoreV1().ConfigMaps("test-namespace").Get(context.Background(), "connectivity-proxy", metav1.GetOptions{})
-		require.NoError(t, err)
-
-		configYaml, ok := updatedConfigMap.Data["connectivity-proxy-config.yml"]
+	getExternalHostFromConfigMap := func(configMap *coreV1.ConfigMap) string {
+		configYaml, ok := configMap.Data["connectivity-proxy-config.yml"]
 		require.True(t, ok)
 
 		s := &struct {
@@ -167,7 +164,7 @@ data:
 			} `yaml:"servers"`
 		}{}
 
-		err = yaml.Unmarshal([]byte(configYaml), s)
+		err := yaml.Unmarshal([]byte(configYaml), s)
 		require.NoError(t, err)
 
 		return s.Servers.BusinessDataTunnel.ExternalHost
@@ -187,7 +184,11 @@ data:
 		// then
 		require.NoError(t, err)
 
-		actualExternalHost := getExternalHostFromConfigMap(fakeClientSet)
+		updatedConfigMap, err := fakeClientSet.CoreV1().ConfigMaps("test-namespace").Get(context.Background(), "connectivity-proxy", metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, "connectivity-proxy.kyma-system", updatedConfigMap.GetLabels()["connectivityproxy.sap.com/restart"])
+
+		actualExternalHost := getExternalHostFromConfigMap(updatedConfigMap)
 		require.Equal(t, expectedHost, actualExternalHost)
 
 		// when
@@ -196,7 +197,11 @@ data:
 		// then
 		require.NoError(t, err)
 
-		actualExternalHost = getExternalHostFromConfigMap(fakeClientSet)
+		updatedConfigMap, err = fakeClientSet.CoreV1().ConfigMaps("test-namespace").Get(context.Background(), "connectivity-proxy", metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, "connectivity-proxy.kyma-system", updatedConfigMap.GetLabels()["connectivityproxy.sap.com/restart"])
+
+		actualExternalHost = getExternalHostFromConfigMap(updatedConfigMap)
 		require.Equal(t, expectedHost, actualExternalHost)
 	})
 }

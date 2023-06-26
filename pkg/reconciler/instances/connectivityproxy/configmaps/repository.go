@@ -11,7 +11,9 @@ import (
 )
 
 const (
-	configurationKey = "connectivity-proxy-config.yml"
+	configurationKey         = "connectivity-proxy-config.yml"
+	restartLabel             = "connectivityproxy.sap.com/restart"
+	connectivityProxyService = "connectivity-proxy.kyma-system"
 )
 
 type ConfigMapRepo struct {
@@ -91,6 +93,13 @@ func (cmr ConfigMapRepo) FixConfiguration(namespace, name string) error {
 		// Already replaced, nothing to do
 		return nil
 	}
+
+	labels := configMap.GetLabels()
+	if labels == nil {
+		labels = map[string]string{}
+	}
+
+	labels[restartLabel] = connectivityProxyService
 
 	configMap.Data[configurationKey] = newConfig
 	_, err = cmr.TargetClientSet.CoreV1().ConfigMaps(namespace).Update(context.Background(), configMap, v1.UpdateOptions{})
