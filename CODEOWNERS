@@ -14,7 +14,7 @@
 /pkg/reconciler/instances/serverless/ @m00g3n @pPrecel @dbadura @kwiatekus
 
 # Connectivity Proxy reconciler
-/pkg/reconciler/instances/connectivityproxy/ @akgalwas @koala7659 @ralikio
+/pkg/reconciler/instances/connectivityproxy/ @akgalwas @koala7659 @m00g3n @mvshao @VOID404 @Disper
 
 # Runtime Monitoring Agent (rma) reconciler
 /pkg/reconciler/instances/rma/ @ebensom @life0215 @lumi017 @tobiscr
