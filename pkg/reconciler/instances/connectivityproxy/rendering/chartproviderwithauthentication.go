@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	TokenEnvVariable    = "GIT_CLONE2" //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
+	TokenEnvVariable    = "GIT_CLONE_TOKEN" //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
 	AuthorizationHeader = "Authorization"
 )
 
