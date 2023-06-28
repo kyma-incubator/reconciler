@@ -150,6 +150,10 @@ func (cp *ChartProviderStub) RenderCRD(_ string) ([]*chart.Manifest, error) {
 	return nil, nil
 }
 
+func (cp *ChartProviderStub) RenderCRDFiltered(_ string, _ []string) ([]*chart.Manifest, error) {
+	return nil, nil
+}
+
 func (cp *ChartProviderStub) RenderManifest(_ *chart.Component) (*chart.Manifest, error) {
 	var err error
 	manifest := cp.inputManifest

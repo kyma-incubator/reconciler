@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	fileUtils "github.com/kyma-incubator/reconciler/pkg/files"
 	reconcilerK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -23,6 +24,9 @@ type Provider interface {
 
 	// RenderCRD of the given version.
 	RenderCRD(version string) ([]*Manifest, error)
+
+	// RenderCRDFiltered of the given version.
+	RenderCRDFiltered(version string, exclude []string) ([]*Manifest, error)
 
 	// RenderManifest of the given component.
 	RenderManifest(component *Component) (*Manifest, error)
@@ -60,6 +64,10 @@ func (p *DefaultProvider) WithFilter(f Filter) Provider {
 }
 
 func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
+	return p.RenderCRDFiltered(version, nil)
+}
+
+func (p *DefaultProvider) RenderCRDFiltered(version string, exclude []string) ([]*Manifest, error) {
 	ws, err := p.wsFactory.Get(version)
 	if err != nil {
 		return nil, err
@@ -72,6 +80,12 @@ func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
 		func(path string, file os.FileInfo, e error) error {
 			if e != nil {
 				return e
+			}
+
+			for _, exclPath := range exclude {
+				if strings.Contains(path, fmt.Sprintf("%c%s", os.PathSeparator, exclPath)) {
+					return nil
+				}
 			}
 
 			if file.IsDir() {
