@@ -74,7 +74,7 @@ func TestFixingConfiguration(t *testing.T) {
 		repo := NewConfigMapRepo("test-namespace", fakeClientSet)
 
 		// when
-		err := repo.FixConfiguration("test-namespace", "connectivity-proxy")
+		err := repo.FixConfiguration("test-namespace", "connectivity-proxy", "cp.example.com\"")
 
 		// then
 		require.NoError(t, err)
@@ -92,14 +92,13 @@ func TestFixingConfiguration(t *testing.T) {
 			},
 			Data: nil,
 		}
-
 		_, err := fakeClientSet.CoreV1().ConfigMaps("test-namespace").Create(context.Background(), configMap, metav1.CreateOptions{})
 		require.NoError(t, err)
 
 		repo := NewConfigMapRepo("test-namespace", fakeClientSet)
 
 		// when
-		err = repo.FixConfiguration("test-namespace", "connectivity-proxy")
+		err = repo.FixConfiguration("test-namespace", "connectivity-proxy", "cp.example.com\"")
 
 		// then
 		require.Error(t, err)
@@ -125,7 +124,7 @@ data:
         serviceCredentialsKey: service_key
     servers:
       businessDataTunnel:
-        externalHost: cc-proxy.example.com
+        externalHost: cc-proxy.api.example.com
         externalPort: 443
       proxy:
         http:
@@ -179,7 +178,7 @@ data:
 		createConfigMapFunc(fakeClientSet)
 
 		// when
-		err := repo.FixConfiguration("test-namespace", "connectivity-proxy")
+		err := repo.FixConfiguration("test-namespace", "connectivity-proxy", "cp.example.com")
 
 		// then
 		require.NoError(t, err)
@@ -192,7 +191,7 @@ data:
 		require.Equal(t, expectedHost, actualExternalHost)
 
 		// when
-		err = repo.FixConfiguration("test-namespace", "connectivity-proxy")
+		err = repo.FixConfiguration("test-namespace", "connectivity-proxy", "cp.example.com")
 
 		// then
 		require.NoError(t, err)
@@ -204,4 +203,53 @@ data:
 		actualExternalHost = getExternalHostFromConfigMap(updatedConfigMap)
 		require.Equal(t, expectedHost, actualExternalHost)
 	})
+
+	type testIncorrectYamlStructure struct {
+		configYaml  string
+		description string
+	}
+
+	missingServerKeyYaml := `highAvailabilityMode: "off"`
+	missingTunnelKey := `
+servers:
+  businessDataTunnelMissing:
+    externalHost: cc-proxy.api.example.com
+    externalPort: 443
+`
+	missingExternalHostKey := `
+    servers:
+      businessDataTunnel:
+        externalHostMissing: cc-proxy.api.example.com 
+`
+	tests := []testIncorrectYamlStructure{
+		{description: "should return error when config map lacks servers key", configYaml: missingServerKeyYaml},
+		{description: "should return error when config map lacks businessDataTunnel key", configYaml: missingTunnelKey},
+		{description: "should return error when config map lacks externalHost key", configYaml: missingExternalHostKey},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.description, func(t *testing.T) {
+			fakeClientSet := fake.NewSimpleClientset()
+			configMap := &coreV1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{Kind: "ConfigMap"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "connectivity-proxy",
+					Namespace: "test-namespace",
+				},
+				Data: map[string]string{"connectivity-proxy-config.yml": tc.configYaml},
+			}
+
+			_, err := fakeClientSet.CoreV1().ConfigMaps("test-namespace").Create(context.Background(), configMap, metav1.CreateOptions{})
+			require.NoError(t, err)
+
+			repo := NewConfigMapRepo("test-namespace", fakeClientSet)
+
+			// when
+			err = repo.FixConfiguration("test-namespace", "connectivity-proxy", "cp.api.example.com")
+
+			// then
+			require.Error(t, err)
+		})
+	}
+
 }
