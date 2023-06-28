@@ -78,19 +78,19 @@ func TestProvider(t *testing.T) {
 	t.Run("Render CRDs", func(t *testing.T) {
 		filteredComps := []string{"istio", "api-gateway"}
 
-		//unfiltered
+		// unfiltered
 		crdsUnfiltered, err := prov.RenderCRD(kymaVersion)
 		require.NoError(t, err)
 		require.NotEmpty(t, crdsUnfiltered)
 		require.Equal(t, crdsUnfiltered[0].Type, CRD)
 
-		//filtered
+		// filtered
 		crdsFiltered, err := prov.RenderCRDFiltered(kymaVersion, filteredComps)
 		require.NoError(t, err)
 		require.NotEmpty(t, crdsFiltered)
 		require.Equal(t, crdsFiltered[0].Type, CRD)
 
-		//verify filtered CRDs
+		// verify filtered CRDs
 		require.True(t, len(crdsUnfiltered) > len(crdsFiltered))
 		for _, crdFiltered := range crdsFiltered {
 			for _, filteredComp := range filteredComps {
