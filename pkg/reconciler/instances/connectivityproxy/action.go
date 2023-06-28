@@ -154,6 +154,13 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
+func getTunnelURL(actionCtx *service.ActionContext) string {
+	xtHost := actionCtx.Task.Configuration[tagHost].(string)
+	xtHost = strings.TrimPrefix(xtHost, "api.")
+
+	return fmt.Sprintf("cp.%s", xtHost)
+}
+
 // After the Connectivity Proxy was upgraded to 2.9.2 we must fix the configuration mismatch. After the upgrade the configuration will contain incorrect tunnel's URL (it will start with cc-proxy, not cp as expected)
 // As the configuration config map is not applied if it exists (reconciler.kyma-project.io/skip-rendering-on-upgrade annotation), we must update the URL.
 // There is no need to perform the fix, if the version installed on the environment is other that 2.9.2
@@ -166,7 +173,7 @@ func (a *CustomAction) fixConfigurationIfNeeded(context *service.ActionContext) 
 	labels := app.GetLabels()
 	if labels != nil && labels[versionKey] == versionToApplyConfigurationFix {
 		context.Logger.Warn("Fixing Connectivity Proxy configuration...")
-		return a.Commands.FixConfiguration(context, kymaSystem, configurationConfigMap)
+		return a.Commands.FixConfiguration(context, kymaSystem, configurationConfigMap, getTunnelURL(context))
 	}
 
 	return nil
@@ -252,9 +259,7 @@ func prepareOverrides(actionCtx *service.ActionContext, secret *v1.Secret, caDat
 		return err
 	}
 
-	xtHost := actionCtx.Task.Configuration[tagHost].(string)
-
-	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalHost"] = fmt.Sprintf("cp.%s", xtHost)
+	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalHost"] = getTunnelURL(actionCtx)
 	actionCtx.Task.Configuration["secretConfig.integration.connectivityService.secretName"] = "connectivity-proxy-service-key"
 	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalPort"] = "443"
 	actionCtx.Task.Configuration["config.serviceMappings.configMapName"] = mappingsConfigMap
