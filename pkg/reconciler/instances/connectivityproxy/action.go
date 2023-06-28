@@ -42,7 +42,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	if host == "" {
 		return errors.Errorf("Host cannot be empty")
 	}
-	context.Task.Configuration["global.kubeHost"] = strings.TrimPrefix(host, "https://")
+	context.Task.Configuration["global.kubeHost"] = strings.TrimPrefix(host, "https://api.")
 
 	if context.Task.Type == model.OperationTypeDelete {
 		context.Logger.Debug("Requested cluster removal - removing component")
@@ -156,7 +156,6 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 
 func getTunnelURL(actionCtx *service.ActionContext) string {
 	xtHost := actionCtx.Task.Configuration[tagHost].(string)
-	xtHost = strings.TrimPrefix(xtHost, "api.")
 
 	return fmt.Sprintf("cp.%s", xtHost)
 }
