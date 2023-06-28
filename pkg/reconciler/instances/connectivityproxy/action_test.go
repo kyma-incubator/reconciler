@@ -37,7 +37,6 @@ func setupActionTestEnv() (*kubeMocks.Client, *service.ActionContext, connectivi
 		Task: &reconciler.Task{
 			Component: "test-component",
 			Configuration: map[string]interface{}{
-				"global.kubeHost":         "api.example.com",
 				"global.binding.url":      "cf.test-address.sap.com",
 				"global.binding.CAs_path": "/api/v1/CAs/signing",
 			},
@@ -72,7 +71,7 @@ func TestAction(t *testing.T) {
 
 		kubeClient, context, action, loader, commands := setupActionTestEnv()
 
-		kubeClient.On("GetHost").Return("api.example.com")
+		kubeClient.On("GetHost").Return("https://api.example.com")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(nil, nil)
 
 		loader.On("FindBindingOperator", context).Return(binding, nil)
@@ -96,7 +95,7 @@ func TestAction(t *testing.T) {
 
 		kubeClient, context, action, loader, commands := setupActionTestEnv()
 
-		kubeClient.On("GetHost").Return("api.example.com")
+		kubeClient.On("GetHost").Return("https://api.example.com")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(statefulset, nil)
 		loader.On("FindBindingOperator", context).Return(nil, nil)
 
@@ -113,7 +112,7 @@ func TestAction(t *testing.T) {
 	t.Run("Should refresh app when both binding and app exists", func(t *testing.T) {
 		kubeClient, context, action, loader, commands := setupActionTestEnv()
 
-		kubeClient.On("GetHost").Return("api.example.com")
+		kubeClient.On("GetHost").Return("https://api.example.com")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(statefulset, nil)
 
 		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return([]byte("testme"), nil)
@@ -136,7 +135,7 @@ func TestAction(t *testing.T) {
 	t.Run("Should do nothing when binding and app are missing ", func(t *testing.T) {
 		kubeClient, context, action, loader, commands := setupActionTestEnv()
 
-		kubeClient.On("GetHost").Return("api.example.com")
+		kubeClient.On("GetHost").Return("https://api.example.com")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(nil, nil)
 
 		loader.On("FindBindingOperator", context).Return(nil, nil)
@@ -152,7 +151,7 @@ func TestAction(t *testing.T) {
 	t.Run("Should ignore error when binding exists, and FindSecret returns error", func(t *testing.T) {
 		kubeClient, context, action, loader, commands := setupActionTestEnv()
 
-		kubeClient.On("GetHost").Return("api.example.com")
+		kubeClient.On("GetHost").Return("https://api.example.com")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(nil, nil)
 
 		loader.On("FindBindingOperator", context).Return(binding, nil)
@@ -178,7 +177,7 @@ func TestAction(t *testing.T) {
 
 		kubeClient, context, action, loader, commands := setupActionTestEnv()
 
-		kubeClient.On("GetHost").Return("api.example.com")
+		kubeClient.On("GetHost").Return("https://api.example.com")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(statefulset, nil)
 
 		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return([]byte("testme"), nil)
