@@ -21,7 +21,7 @@ type PreserveDockerRegistrySecret struct {
 
 func (a *PreserveDockerRegistrySecret) Run(svcCtx *service.ActionContext) error {
 
-	logger := svcCtx.Logger
+	logger := svcCtx.Logger.With("action", a.name)
 	k8sClient, err := svcCtx.KubeClient.Clientset()
 	if err != nil {
 		return errors.Wrap(err, "while getting clientset")
