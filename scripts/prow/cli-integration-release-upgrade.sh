@@ -2,11 +2,11 @@ set -e
 apk add nodejs npm
 git remote add origin https://github.com/kyma-project/kyma.git
 git reset --hard && git remote update && git fetch --tags --all >/dev/null 2>&1
-kyma_get_previous_release_version_return_version=$(git tag -l '[0-9]*.[0-9]*.[0-9]*[!-a-z*]'| sort -r -V | head -n2)
+kyma_get_previous_release_version_return_version=$(git tag -l '*([0-9]).*([0-9]).*([0-9])'| sort -r -V | sed -n 2p)
 echo "TEST:" $kyma_get_previous_release_version_return_version
 export KYMA_SOURCE="${kyma_get_previous_release_version_return_version:?}"
 echo "KYMA_SOURCE:" $KYMA_SOURCE
-kyma_get_last_release_version_return_version=$(git tag -l '[0-9]*.[0-9]*.[0-9]*[!-a-z*]'| sort -r -V | head -n1)
+kyma_get_last_release_version_return_version=$(git tag -l '*([0-9]).*([0-9]).*([0-9])'| sort -r -V | head -n1)
 echo "last: " $kyma_get_last_release_version_return_version
 export KYMA_UPGRADE_VERSION="${kyma_get_last_release_version_return_version:?}"
 install_dir="/usr/local/bin"
