@@ -1,10 +1,10 @@
 set -e
 apk add nodejs npm
 kyma_get_previous_release_version_return_version=$(curl --silent --fail --show-error -H "Authorization: token ${BOT_GITHUB_TOKEN}" "https://api.github.com/repos/kyma-project/kyma/releases" | jq -r 'del( .[] | select( (.prerelease == true) or (.draft == true) )) | sort_by(.tag_name | split(".") | map(tonumber)) | .[-2].target_commitish | split("/") | .[-1]')
-echo "previous: " kyma_get_previous_release_version_return_version
+echo "previous: " $kyma_get_previous_release_version_return_version
 export KYMA_SOURCE="${kyma_get_previous_release_version_return_version:?}"
 kyma_get_last_release_version_return_version=$(curl --silent --fail --show-error -H "Authorization: token ${BOT_GITHUB_TOKEN}" "https://api.github.com/repos/kyma-project/kyma/releases" | jq -r 'del( .[] | select( (.prerelease == true) or (.draft == true) )) | sort_by(.tag_name | split(".") | map(tonumber)) | .[-1].target_commitish | split("/") | .[-1]')
-echo "last: " kyma_get_last_release_version_return_version
+echo "last: " $kyma_get_last_release_version_return_version
 export KYMA_UPGRADE_VERSION="${kyma_get_last_release_version_return_version:?}"
 install_dir="/usr/local/bin"
 mkdir -p "$install_dir"
