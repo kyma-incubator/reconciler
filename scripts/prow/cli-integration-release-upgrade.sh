@@ -1,6 +1,8 @@
 set -e
 apk add nodejs npm
 kyma_get_previous_release_version_return_version=$(curl --silent --fail --show-error -H "Authorization: token ${BOT_GITHUB_TOKEN}" "https://api.github.com/repos/kyma-project/kyma/releases" | jq -r 'del( .[] | select( (.prerelease == true) or (.draft == true) )) | sort_by(.tag_name | split(".") | map(tonumber)) | .[-2].target_commitish | split("/") | .[-1]')
+git remote add origin https://github.com/kyma-project/kyma.git
+git reset --hard && git remote update && git fetch --tags --all >/dev/null 2>&1
 #kyma_get_previous_release_version_return_version=$(git ls-remote --refs --sort="version:refname" --tags "https://github.com/kyma-project/kyma.git" | cut -d/ -f3-|tail -n1)
 echo "previous: " $kyma_get_previous_release_version_return_version
 export KYMA_SOURCE="${kyma_get_previous_release_version_return_version:?}"
@@ -15,7 +17,6 @@ kyma version --client
 popd || exit
 kyma provision k3d --ci
 kyma deploy --ci --concurrency=8 --profile=evaluation --source="${KYMA_SOURCE}" --verbose
-git remote add origin https://github.com/kyma-project/kyma.git
 git reset --hard && git remote update && git fetch --all >/dev/null 2>&1 && git checkout "${KYMA_SOURCE}"
 make -C "../../kyma-project/kyma/tests/fast-integration" "ci-pre-upgrade"
 kyma deploy --ci --concurrency=8 --profile=evaluation --source="${KYMA_UPGRADE_VERSION}" --verbose
