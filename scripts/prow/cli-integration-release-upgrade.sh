@@ -1,14 +1,11 @@
 set -e
 apk add nodejs npm
-kyma_get_previous_release_version_return_version=$(curl --silent --fail --show-error -H "Authorization: token ${BOT_GITHUB_TOKEN}" "https://api.github.com/repos/kyma-project/kyma/releases" | jq -r 'del( .[] | select( (.prerelease == true) or (.draft == true) )) | sort_by(.tag_name | split(".") | map(tonumber)) | .[-2].target_commitish | split("/") | .[-1]')
 git remote add origin https://github.com/kyma-project/kyma.git
 git reset --hard && git remote update && git fetch --tags --all >/dev/null 2>&1
-test=$(git tag -l '[0-9].[0-9].[0-9]'| sort -r -V | head -n1)
-echo "TEST:" $test
-#kyma_get_previous_release_version_return_version=$(git ls-remote --refs --sort="version:refname" --tags "https://github.com/kyma-project/kyma.git" | cut -d/ -f3-|tail -n1)
-echo "previous: " $kyma_get_previous_release_version_return_version
+kyma_get_previous_release_version_return_version=$(git tag -l '[0-9]*.[0-9]*.[0-9]*[!-a-z*]'| sort -r -V | head -n2)
+echo "TEST:" $kyma_get_previous_release_version_return_version
 export KYMA_SOURCE="${kyma_get_previous_release_version_return_version:?}"
-kyma_get_last_release_version_return_version=$(curl --silent --fail --show-error -H "Authorization: token ${BOT_GITHUB_TOKEN}" "https://api.github.com/repos/kyma-project/kyma/releases" | jq -r 'del( .[] | select( (.prerelease == true) or (.draft == true) )) | sort_by(.tag_name | split(".") | map(tonumber)) | .[-1].target_commitish | split("/") | .[-1]')
+kyma_get_last_release_version_return_version=$(git tag -l '[0-9]*.[0-9]*.[0-9]*[!-a-z*]'| sort -r -V | head -n1)
 echo "last: " $kyma_get_last_release_version_return_version
 export KYMA_UPGRADE_VERSION="${kyma_get_last_release_version_return_version:?}"
 install_dir="/usr/local/bin"
