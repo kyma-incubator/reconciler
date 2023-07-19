@@ -4,6 +4,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
 	"github.com/kyma-project/istio/operator/api/v1alpha1"
 	"go.uber.org/zap"
+	networkingv1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -76,6 +77,11 @@ func (c *DefaultProvider) GetIstioClient(kubeConfig string) (client.Client, erro
 	}
 
 	err = appsv1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	err = networkingv1alpha3.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
 	}
