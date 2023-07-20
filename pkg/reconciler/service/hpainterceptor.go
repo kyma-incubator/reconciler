@@ -8,7 +8,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 )
