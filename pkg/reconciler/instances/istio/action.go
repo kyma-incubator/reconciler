@@ -3,6 +3,9 @@ package istio
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/envoy"
+	ingressgateway "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/ingress-gateway"
 	"strings"
 
 	"github.com/coreos/go-semver/semver"
@@ -366,6 +369,46 @@ func unDeployIstioRelatedResources(context context.Context, manifest string, cli
 	_, err = client.Delete(context, manifest, istioNamespace)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+type envoyAction struct {
+	getIstioPerformer bootstrapIstioPerformer
+}
+
+func NewEnvoyAction(getIstioPerformer bootstrapIstioPerformer) service.Action {
+	return &envoyAction{
+		getIstioPerformer: getIstioPerformer,
+	}
+}
+
+func (e *envoyAction) Run(context *service.ActionContext) error {
+	context.Logger.Debug("Istio envoy filter apply action triggered")
+
+	provider := clientset.DefaultProvider{}
+
+	istioClient, err := provider.GetIstioClient(context.KubeClient.Kubeconfig())
+	if err != nil {
+		return err
+	}
+
+	present, err := envoy.IsEnvoyFilterPresent(context.Context, istioClient)
+	if err != nil {
+		return err
+	}
+
+	if !present {
+		err := envoy.CreateEnvoyFilter(context.Context, istioClient)
+		if err != nil {
+			return err
+		}
+
+		err = ingressgateway.RestartDeployment(context.Context, istioClient)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

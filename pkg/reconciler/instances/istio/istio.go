@@ -36,7 +36,9 @@ func init() {
 	reconcilerIstio.
 		WithPreReconcileAction(NewStatusPreAction(istioPerformerCreatorFn)).
 		WithReconcileAction(NewIstioMainReconcileAction(istioPerformerCreatorFn)).
-		WithPostReconcileAction(actions.NewActionAggregate(NewProxyResetPostAction(istioPerformerCreatorFn))).
+		WithPostReconcileAction(actions.NewActionAggregate(
+			NewEnvoyAction(istioPerformerCreatorFn),
+			NewProxyResetPostAction(istioPerformerCreatorFn))).
 		WithDeleteAction(NewUninstallAction(istioPerformerCreatorFn))
 
 }
