@@ -7,6 +7,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/test"
+	"os"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -444,6 +445,7 @@ func TestReconciliationSequenceWithMigratedComponents(t *testing.T) {
 		reconciliationStatus Status
 		expected             *ReconciliationSequence
 		err                  error
+		envVars              map[string]string
 	}{
 		{
 			name:     "With migrated and non-migrated components",
@@ -485,6 +487,9 @@ func TestReconciliationSequenceWithMigratedComponents(t *testing.T) {
 					{
 						Component: "Comp2",
 					},
+					{
+						Component: "Comp3",
+					},
 				},
 			},
 			expected: &ReconciliationSequence{
@@ -504,12 +509,16 @@ func TestReconciliationSequenceWithMigratedComponents(t *testing.T) {
 					},
 				},
 			},
-			err: nil,
+			err:     nil,
+			envVars: map[string]string{"SKIP_COMPONENT_COMP3": "1"},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			for key, value := range tc.envVars {
+				require.NoError(t, os.Setenv(key, value))
+			}
 			result := tc.entity.GetReconciliationSequence(&ReconciliationSequenceConfig{
 				PreComponents:        tc.preComps,
 				DeleteStrategy:       "system",
@@ -517,6 +526,9 @@ func TestReconciliationSequenceWithMigratedComponents(t *testing.T) {
 				Kubeconfig:           test.ReadKubeconfig(t),
 				ComponentCRDs:        tc.componentCRDs,
 			})
+			for key := range tc.envVars {
+				require.NoError(t, os.Unsetenv(key))
+			}
 			for idx, expected := range tc.expected.Queue {
 				require.ElementsMatch(t, result.Queue[idx], expected)
 			}
