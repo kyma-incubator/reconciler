@@ -179,8 +179,10 @@ func (c *ClusterConfigurationEntity) nonMigratedComponents(cfg *ReconciliationSe
 			continue
 		}
 		//ignore component if the SKIP_COMPONENT_XYZ env-var is defined
-		skipComp := os.Getenv(fmt.Sprintf("SKIP_COMPONENT_%s", strings.ToUpper(comp.Component)))
+		envVar := fmt.Sprintf("SKIP_COMPONENT_%s", strings.ToUpper(comp.Component))
+		skipComp := os.Getenv(envVar)
 		if strings.ToLower(skipComp) == "true" || skipComp == "1" {
+			logger.Info("Skipping component %s (%s = $s)", comp.Component, envVar, skipComp)
 			continue
 		}
 		result = append(result, comp)
