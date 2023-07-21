@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -173,7 +174,13 @@ func (c *ClusterConfigurationEntity) nonMigratedComponents(cfg *ReconciliationSe
 
 	var result []*keb.Component
 	for _, comp := range c.Components {
+		//ignore all migrated components
 		if migratedComponents[strings.ToLower(comp.Component)] {
+			continue
+		}
+		//ignore component if the SKIP_COMPONENT_XYZ env-var is defined
+		skipComp := os.Getenv(fmt.Sprintf("SKIP_COMPONENT_%s", strings.ToUpper(comp.Component)))
+		if strings.ToLower(skipComp) == "true" || skipComp == "1" {
 			continue
 		}
 		result = append(result, comp)
