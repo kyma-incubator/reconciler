@@ -788,7 +788,7 @@ func Test_canUpdate(t *testing.T) {
 		require.True(t, result)
 	})
 
-	t.Run("should not allow update when downgrade scenario is detected for data plane", func(t *testing.T) {
+	t.Run("should allow update when downgrade scenario is detected for data plane", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
 			ClientVersion:     "1.1.0",
@@ -801,7 +801,7 @@ func Test_canUpdate(t *testing.T) {
 		result, _ := canUpdate(version)
 
 		// then
-		require.False(t, result)
+		require.True(t, result)
 	})
 
 	t.Run("should not allow update when more than one minor upgrade is detected for pilot", func(t *testing.T) {
@@ -820,7 +820,7 @@ func Test_canUpdate(t *testing.T) {
 		require.False(t, result)
 	})
 
-	t.Run("should not allow update when more than one minor upgrade is detected for data plane", func(t *testing.T) {
+	t.Run("should allow update when more than one minor upgrade is detected for data plane", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
 			ClientVersion:     "1.2.0",
@@ -833,10 +833,10 @@ func Test_canUpdate(t *testing.T) {
 		result, _ := canUpdate(version)
 
 		// then
-		require.False(t, result)
+		require.True(t, result)
 	})
 
-	t.Run("should allow update when less than one minor upgrade is detected for pilot and data plane ", func(t *testing.T) {
+	t.Run("should allow update when less than one minor upgrade is detected for pilot", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
 			ClientVersion:     "1.2.0",
@@ -896,14 +896,14 @@ func Test_ensureCanResetProxies(t *testing.T) {
 		}
 
 		// when
-		err := ensureCanResetProxies(version)
+		err := ensureCanResetProxies(version, log.NewLogger(true))
 
 		// then
 		require.NotNil(t, err)
 		require.Equal(t, err.Error(), "Istio pilot version 1.0.0 do not match target version 1.2.0")
 	})
 
-	t.Run("should not allow proxy reset when one of dataplane versions is more than one minor behind the target version", func(t *testing.T) {
+	t.Run("should allow proxy reset when one of dataplane versions is more than one minor behind the target version", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
 			ClientVersion:     "1.2.0",
@@ -913,11 +913,10 @@ func Test_ensureCanResetProxies(t *testing.T) {
 		}
 
 		// when
-		err := ensureCanResetProxies(version)
+		err := ensureCanResetProxies(version, log.NewLogger(true))
 
 		// then
-		require.NotNil(t, err)
-		require.Equal(t, err.Error(), "Could not perform upgrade for Data plane from version: 1.0.0 to version: 1.2.0 - the difference between versions exceed one minor version")
+		require.NoError(t, err)
 	})
 
 	t.Run("should allow proxy reset when all versions match", func(t *testing.T) {
@@ -930,23 +929,7 @@ func Test_ensureCanResetProxies(t *testing.T) {
 		}
 
 		// when
-		err := ensureCanResetProxies(version)
-
-		// then
-		require.Nil(t, err)
-	})
-
-	t.Run("should allow proxy reset when one of dataplane versions is one minor behind the target version", func(t *testing.T) {
-		// given
-		version := actions.IstioStatus{
-			ClientVersion:     "1.2.0",
-			TargetVersion:     "1.2.0",
-			PilotVersion:      "1.2.0",
-			DataPlaneVersions: map[string]bool{"1.2.0": true, "1.1.0": true},
-		}
-
-		// when
-		err := ensureCanResetProxies(version)
+		err := ensureCanResetProxies(version, log.NewLogger(true))
 
 		// then
 		require.Nil(t, err)
@@ -962,7 +945,7 @@ func Test_ensureCanResetProxies(t *testing.T) {
 		}
 
 		// when
-		err := ensureCanResetProxies(version)
+		err := ensureCanResetProxies(version, log.NewLogger(true))
 
 		// then
 		require.Nil(t, err)
@@ -978,7 +961,7 @@ func Test_ensureCanResetProxies(t *testing.T) {
 		}
 
 		// when
-		err := ensureCanResetProxies(version)
+		err := ensureCanResetProxies(version, log.NewLogger(true))
 
 		// then
 		require.Nil(t, err)

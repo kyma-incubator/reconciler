@@ -144,7 +144,7 @@ func (a *ProxyResetPostAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	err = ensureCanResetProxies(istioStatus)
+	err = ensureCanResetProxies(istioStatus, context.Logger)
 	if err != nil {
 		context.Logger.Warnf("Can not perform ResetProxy action: %v", err)
 		return nil
@@ -275,20 +275,10 @@ func isClientCompatibleWithTargetVersion(istioStatus actions.IstioStatus) bool {
 }
 
 func canUpdate(istioStatus actions.IstioStatus) (bool, error) {
-	if isPilotCompatible, err := isComponentCompatible(istioStatus.PilotVersion, istioStatus.TargetVersion, "Pilot"); !isPilotCompatible {
-		return false, err
-	}
-
-	for dpVersion := range istioStatus.DataPlaneVersions {
-		if isDataplaneCompatible, err := isComponentCompatible(dpVersion, istioStatus.TargetVersion, "Data plane"); !isDataplaneCompatible {
-			return false, err
-		}
-	}
-
-	return true, nil
+	return isComponentCompatible(istioStatus.PilotVersion, istioStatus.TargetVersion, "Pilot")
 }
 
-func ensureCanResetProxies(istioStatus actions.IstioStatus) error {
+func ensureCanResetProxies(istioStatus actions.IstioStatus, logger *zap.SugaredLogger) error {
 	pilotVersion, err := istioctl.VersionFromString(istioStatus.PilotVersion)
 	if err != nil {
 		return errors.Wrap(err, "Error parsing pilot version")
@@ -304,8 +294,13 @@ func ensureCanResetProxies(istioStatus actions.IstioStatus) error {
 	}
 
 	for dpVersion := range istioStatus.DataPlaneVersions {
-		if isDataplaneCompatible, err := isComponentCompatible(dpVersion, istioStatus.TargetVersion, "Data plane"); !isDataplaneCompatible {
-			return err
+		if hasDataPlaneOutdatedVersions, _ := isComponentCompatible(dpVersion, istioStatus.TargetVersion, "Data plane"); !hasDataPlaneOutdatedVersions {
+			logger.Warnf("There are service proxies that were not updated during last Istio updates and therefore running on outdated versions.")
+			// We don't want that restarting proxies is blocked if the customer has not restarted their workloads that we cannot restart for them in the proxy reset.
+			// We should try to restart proxies regardless of a version mismatch in the proxies, as we have already verified in this function that the pilot version of Istio
+			// matches the target version and therefore the update of Istio was successful.
+			// Also, we don't want to log the error because it can be confusing because it says that the action is not executed even though it is.
+			return nil
 		}
 	}
 	return nil
@@ -334,7 +329,7 @@ func isComponentCompatible(componentVersion, targetVersion, componentName string
 
 	componentVsTargetComparison := targetHelperVersion.compare(componentHelperVersion)
 	if !amongOneMinor(componentHelperVersion, targetHelperVersion) {
-		return false, fmt.Errorf("Could not perform %s for %s from version: %s to version: %s - the difference between versions exceed one minor version",
+		return false, fmt.Errorf("could not perform %s for %s from version: %s to version: %s - the difference between versions exceed one minor version",
 			getActionTypeFrom(componentVsTargetComparison), componentName, componentVersion, targetVersion)
 	}
 
