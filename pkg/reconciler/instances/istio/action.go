@@ -82,8 +82,9 @@ func installIstioModuleManifests(context *service.ActionContext, istioVersion st
 	}
 
 	for _, manifest := range managerManifests {
-		spec := manifest.Object["spec"]
-		_, err := controllerutil.CreateOrUpdate(context.Context, k8sClient, &manifest, func() error { manifest.Object["spec"] = spec; return nil })
+		m := manifest
+		spec := m.Object["spec"]
+		_, err := controllerutil.CreateOrUpdate(context.Context, k8sClient, &m, func() error { m.Object["spec"] = spec; return nil })
 		if err != nil {
 			return err
 		}
