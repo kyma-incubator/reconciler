@@ -155,6 +155,7 @@ func TestCommands_Apply(t *testing.T) {
 			mock.AnythingOfType("*service.LabelsInterceptor"),
 			mock.AnythingOfType("*service.AnnotationsInterceptor"),
 			mock.AnythingOfType("*service.ServicesInterceptor"),
+			mock.AnythingOfType("*service.PVCInterceptor"),
 			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
 			mock.AnythingOfType("*service.NamespaceInterceptor"),
 			mock.AnythingOfType("*service.FinalizerInterceptor")).
@@ -198,6 +199,7 @@ func TestCommands_Apply(t *testing.T) {
 			mock.AnythingOfType("*service.LabelsInterceptor"),
 			mock.AnythingOfType("*service.AnnotationsInterceptor"),
 			mock.AnythingOfType("*service.ServicesInterceptor"),
+			mock.AnythingOfType("*service.PVCInterceptor"),
 			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
 			mock.AnythingOfType("*service.NamespaceInterceptor"),
 			mock.AnythingOfType("*service.FinalizerInterceptor")).
@@ -239,6 +241,7 @@ func TestCommands_Apply(t *testing.T) {
 			mock.AnythingOfType("*service.LabelsInterceptor"),
 			mock.AnythingOfType("*service.AnnotationsInterceptor"),
 			mock.AnythingOfType("*service.ServicesInterceptor"),
+			mock.AnythingOfType("*service.PVCInterceptor"),
 			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
 			mock.AnythingOfType("*service.NamespaceInterceptor"),
 			mock.AnythingOfType("*service.FinalizerInterceptor")).
