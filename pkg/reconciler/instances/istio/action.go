@@ -54,11 +54,7 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	if err := installIstioCR(context, istioVersion, k8sClient); err != nil {
-		return err
-	}
-
-	return nil
+	return installIstioCR(context, istioVersion, k8sClient)
 }
 
 func buildConfig(context *service.ActionContext) (*rest.Config, error) {
@@ -88,7 +84,9 @@ func installIstioModuleManifests(context *service.ActionContext, istioVersion st
 	for _, manifest := range managerManifests {
 		spec := manifest.Object["spec"]
 		_, err := controllerutil.CreateOrUpdate(context.Context, k8sClient, &manifest, func() error { manifest.Object["spec"] = spec; return nil })
-		return err
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
