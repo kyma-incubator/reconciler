@@ -24,6 +24,10 @@ func IstioTagFromContext(context *service.ActionContext) (string, error) {
 	}
 
 	man, err := kubernetes.ToUnstructured([]byte(istioManifest.Manifest), true)
+	if err != nil {
+		return "", err
+	}
+
 	var istioVersion string
 	for _, u := range man {
 		if u.GetKind() == configurationKind {
