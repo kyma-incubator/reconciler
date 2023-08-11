@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	assetsUrl = "https://github.com/kyma-project/istio/releases/download"
+	istioFallbackVersion = "1.0.0"
+	assetsURL            = "https://github.com/kyma-project/istio/releases/download"
 )
 
 const (
@@ -45,7 +46,8 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 
 	istioVersion, err := get.IstioTagFromContext(context)
 	if err != nil {
-		return err
+		context.Logger.Warnf("Could not get Istio Operator tag from Kyma chart, falling back to %s, err: %s", istioFallbackVersion, err)
+		istioVersion = istioFallbackVersion
 	}
 
 	if err := installIstioModuleManifests(context, istioVersion, k8sClient); err != nil {
@@ -78,7 +80,7 @@ func newClient(cfg *rest.Config) (client.Client, error) {
 }
 
 func installIstioModuleManifests(context *service.ActionContext, istioVersion string, k8sClient client.Client) error {
-	managerManifests, err := get.IstioManagerManifest(assetsUrl, istioVersion)
+	managerManifests, err := get.IstioManagerManifest(assetsURL, istioVersion)
 	if err != nil {
 		return err
 	}
@@ -94,7 +96,7 @@ func installIstioModuleManifests(context *service.ActionContext, istioVersion st
 }
 
 func installIstioCR(context *service.ActionContext, istioVersion string, k8sClient client.Client) error {
-	crManifest, err := get.IstioCRManifest(assetsUrl, istioVersion)
+	crManifest, err := get.IstioCRManifest(assetsURL, istioVersion)
 	if err != nil {
 		return err
 	}

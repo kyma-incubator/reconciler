@@ -36,7 +36,7 @@ func IstioTagFromContext(context *service.ActionContext) (string, error) {
 		}
 	}
 	if istioVersion == "" {
-		return "", errors.New("Didn't find istio version in chart")
+		return "", errors.New("Didn't find istio operator configuration in chart")
 	}
 
 	return istioVersion, nil
