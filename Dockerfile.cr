@@ -1,7 +1,3 @@
-# Istioctl source images
-FROM europe-docker.pkg.dev/kyma-project/prod/external/istio/istioctl:1.17.3 AS istio-1_17_3
-FROM europe-docker.pkg.dev/kyma-project/prod/external/istio/istioctl:1.18.2 AS istio-1_18_2
-
 # Build image
 FROM golang:1.20.5-alpine3.17 AS build
 
@@ -37,12 +33,6 @@ COPY --from=build /user/group /user/passwd /etc/
 # Add reconciler
 COPY --from=build /bin/reconciler /bin/reconciler
 COPY --from=build /configs/ /configs/
-
-# Add istioctl tools
-COPY --from=istio-1_17_3 /usr/local/bin/istioctl /bin/istioctl-1.17.3
-COPY --from=istio-1_18_2 /usr/local/bin/istioctl /bin/istioctl-1.18.2
-# For multiple istioctl binaries, provide their paths separated with a semicolon (;) like in the Linux PATH variable.
-ENV ISTIOCTL_PATH=/bin/istioctl-1.17.3;/bin/istioctl-1.18.2
 
 USER appuser:appuser
 
