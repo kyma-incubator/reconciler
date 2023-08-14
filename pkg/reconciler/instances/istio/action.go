@@ -139,7 +139,8 @@ func checkIfIstioIsReady(context *service.ActionContext, k8sClient client.Client
 	if oldestCR.Status.State == "Ready" {
 		return nil
 	} else if oldestCR.Status.State == "Warning" {
-		context.Logger.Warn("Istio is in warning state, description")
+		context.Logger.Warn("Istio is in warning state")
+		return nil
 	} else if oldestCR.Status.State == "Error" {
 		return errors.New("Istio CR is in error state")
 	}
