@@ -99,7 +99,7 @@ func installIstioCR(context *service.ActionContext, istioVersion string, k8sClie
 	}
 
 	var istioList v1alpha1.IstioList
-	err = k8sClient.List(context.Context, &istioList)
+	err = k8sClient.List(context.Context, &istioList, client.InNamespace("kyma-system"))
 	if err != nil {
 		return err
 	}
@@ -125,6 +125,10 @@ func checkIfIstioIsReady(context *service.ActionContext, k8sClient client.Client
 	for _, item := range istioList.Items {
 		if item.Status.State == "Ready" {
 			return nil
+		} else if item.Status.State == "Warning" {
+			context.Logger.Warn("Istio is in warning state, description")
+		} else if item.Status.State == "Error" {
+			return errors.New("Istio CR is in error state")
 		}
 	}
 	context.Logger.Debug("Waiting for Istio module to become ready")
