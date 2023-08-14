@@ -1,9 +1,18 @@
 package get
 
 import (
+	"context"
 	_ "embed"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/kubernetes/fake"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -130,9 +139,49 @@ func TestGetIstioManagerManifest(t *testing.T) {
 	}
 }
 
+func newFakeServiceContext(factory chart.Factory, provider chart.Provider, client kubernetes.Client) *service.ActionContext {
+	logger := log.NewLogger(true)
+	model := reconciler.Task{
+		Component: "component",
+		Namespace: "namespace",
+		Version:   "version",
+		Profile:   "profile",
+	}
+
+	return &service.ActionContext{
+		KubeClient:       client,
+		Context:          context.Background(),
+		WorkspaceFactory: factory,
+		Logger:           logger,
+		ChartProvider:    provider,
+		Task:             &model,
+	}
+}
+
+func newFakeKubeClient() *k8smocks.Client {
+	mockClient := &k8smocks.Client{}
+	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
+	mockClient.On("Kubeconfig").Return("kubeconfig")
+	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	return mockClient
+}
+
 func TestIstioTagFromContext(t *testing.T) {
+	// given
+	factory := chartmocks.Factory{}
+	factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{
+		ResourceDir: "./test_files/resources/",
+	}, nil)
+	provider := chartmocks.Provider{}
+	kubeClient := newFakeKubeClient()
+	actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+	var manifest chart.Manifest
+	provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&manifest, nil)
+
 	type args struct {
-		context *service.ActionContext
+		manifest string
+		context  *service.ActionContext
 	}
 	tests := []struct {
 		name    string
@@ -141,11 +190,21 @@ func TestIstioTagFromContext(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Should get 1.0.0 from sampleIstioConfiguration",
+			name:    "Should get 1.0.0 from sampleIstioConfiguration",
+			args:    args{context: actionContext, manifest: sampleIstioConfiguration},
+			want:    "1.0.0",
+			wantErr: false,
+		},
+		{
+			name:    "Should get error when chart is empty",
+			args:    args{context: actionContext, manifest: ""},
+			want:    "",
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			manifest.Manifest = tt.args.manifest
 			got, err := IstioTagFromContext(tt.args.context)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("IstioTagFromContext() error = %v, wantErr %v", err, tt.wantErr)

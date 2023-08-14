@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+var listOptions = []client.ListOption{client.InNamespace("kyma-system")}
+
 const (
 	istioFallbackVersion = "1.0.0"
 	assetsURL            = "https://github.com/kyma-project/istio/releases/download"
@@ -99,7 +101,7 @@ func installIstioCR(context *service.ActionContext, istioVersion string, k8sClie
 	}
 
 	var istioList v1alpha1.IstioList
-	err = k8sClient.List(context.Context, &istioList, client.InNamespace("kyma-system"))
+	err = k8sClient.List(context.Context, &istioList, listOptions...)
 	if err != nil {
 		return err
 	}
@@ -116,20 +118,30 @@ func installIstioCR(context *service.ActionContext, istioVersion string, k8sClie
 	}, retry.Attempts(retryAttempts), retry.Delay(retryDelay))
 }
 
+func getOldestCR(istioCRs *v1alpha1.IstioList) *v1alpha1.Istio {
+	oldest := istioCRs.Items[0]
+	for _, item := range istioCRs.Items {
+		timestamp := &item.CreationTimestamp
+		if !(oldest.CreationTimestamp.Before(timestamp)) {
+			oldest = item
+		}
+	}
+	return &oldest
+}
+
 func checkIfIstioIsReady(context *service.ActionContext, k8sClient client.Client) error {
 	var istioList v1alpha1.IstioList
-	err := k8sClient.List(context.Context, &istioList)
+	err := k8sClient.List(context.Context, &istioList, listOptions...)
 	if err != nil {
 		return err
 	}
-	for _, item := range istioList.Items {
-		if item.Status.State == "Ready" {
-			return nil
-		} else if item.Status.State == "Warning" {
-			context.Logger.Warn("Istio is in warning state, description")
-		} else if item.Status.State == "Error" {
-			return errors.New("Istio CR is in error state")
-		}
+	oldestCR := getOldestCR(&istioList)
+	if oldestCR.Status.State == "Ready" {
+		return nil
+	} else if oldestCR.Status.State == "Warning" {
+		context.Logger.Warn("Istio is in warning state, description")
+	} else if oldestCR.Status.State == "Error" {
+		return errors.New("Istio CR is in error state")
 	}
 	context.Logger.Debug("Waiting for Istio module to become ready")
 	return errors.New("Istio module is not ready")
