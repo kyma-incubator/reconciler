@@ -1,7 +1,0 @@
----
-
-global:
-  sidecarMigration: false
-helmValues:
-  sidecarInjectorWebhook:
-    enableNamespacesByDefault: false
