@@ -172,7 +172,7 @@ func (r *Install) ignoreIstioCRD(task *reconciler.Task) bool {
 
 func (r *Install) skippedComps() []string {
 	envVars := os.Environ()
-	skippedComps := make([]string, len(envVars))
+	skippedComps := []string{}
 	//Search for skipped components by checking all env-vars
 	for _, envVar := range envVars {
 		envPair := strings.SplitN(envVar, "=", 2)
