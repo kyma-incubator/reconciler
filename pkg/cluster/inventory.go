@@ -62,7 +62,9 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 		repo.Logger.Warn("Cluster inventory failed to create local Kubernetes config: %s", err)
 	} else {
 		clientSet, err = kubernetes.NewForConfig(config)
-		if err != nil {
+		if err == nil {
+			repo.Logger.Info("Cluster inventory successfully created a local cluster client")
+		} else {
 			repo.Logger.Warn("Cluster inventory failed to create local Kubernetes clientSet: %s", err)
 		}
 	}
