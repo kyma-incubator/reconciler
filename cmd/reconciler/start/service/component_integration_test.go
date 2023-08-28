@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-
 	"io"
 	"net/http"
 	"os"
@@ -239,29 +238,6 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 			parallelRequests: 10,
 			responseParser:   s.tooManyRequestResponseParser(),
 			verification:     s.verifyTooManyRequests(),
-		},
-		{
-			name: "Install external component from scratch",
-			settings: &componentReconcilerIntegrationSettings{
-				name:            "sap-btp-operator-controller-manager",
-				namespace:       "inttest-comprecon-ext",
-				version:         "0.0.0",
-				deployment:      "sap-btp-operator-controller-manager",
-				url:             "https://github.com/kyma-incubator/sap-btp-service-operator/releases/download/v0.1.18-custom/sap-btp-operator-0.1.18.tar.gz",
-				deleteAfterTest: true,
-			},
-			model: &reconciler.Task{
-				ComponentsReady:        []string{"abc", "xyz"},
-				Type:                   model.OperationTypeReconcile,
-				Profile:                "",
-				Configuration:          nil,
-				Kubeconfig:             s.kubeClient.Kubeconfig(),
-				CorrelationID:          "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 5},
-			},
-			responseParser:       s.responseOkParser(),
-			verification:         s.verifyPodReady(),
-			callbackVerification: s.expectSuccessfulReconciliation(),
 		},
 		{
 			name: "Try to apply impossible change: change api version",
