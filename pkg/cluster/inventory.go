@@ -2,15 +2,20 @@ package cluster
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	k8serr "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Inventory interface {
@@ -33,6 +38,7 @@ type Inventory interface {
 type DefaultInventory struct {
 	*repository.Repository
 	metricsCollector
+	clientSet *kubernetes.Clientset
 }
 
 type metricsCollector interface {
@@ -49,7 +55,20 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 	if err != nil {
 		return nil, err
 	}
-	return &DefaultInventory{repo, collector}, nil
+
+	config, err := clientcmd.BuildConfigFromFlags("", "")
+	if err != nil {
+		repo.Logger.Error("Cluster inventory failed to create local Kubernetes config: %s", err)
+		return nil, err
+	}
+
+	clientSet, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		repo.Logger.Error("Cluster inventory failed to create Kubernetes clientSet: %s", err)
+		return nil, err
+	}
+
+	return &DefaultInventory{repo, collector, clientSet}, nil
 }
 
 func (i *DefaultInventory) WithTx(tx *db.TxConnection) (Inventory, error) {
@@ -145,6 +164,33 @@ func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cl
 }
 
 func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Cluster) (*model.ClusterEntity, error) {
+	result, err := i.getOrCreateCluster(contractVersion, cluster)
+	if err != nil {
+		return result, err
+	}
+
+	//TODO: clarify whether this is the right lookup!
+	secret, err := i.clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), result.RuntimeID, v1.GetOptions{})
+	if err != nil {
+		if k8serr.IsNotFound(err) {
+			i.Logger.Debugf("Cluster inventory cannot find a kubeconfig-secret for cluster with runtimeID %s", result.RuntimeID)
+		} else {
+			i.Logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret for cluster with runtimeID %s: %s", result.RuntimeID, err)
+		}
+		return result, err
+	}
+
+	if kubeconfig, found := secret.StringData["kubeconfig"]; !found {
+		i.Logger.Errorf("Kubeconfig-secret for runtime '%s' does not include the data-key 'kubeconfig'", result.RuntimeID)
+	} else {
+		i.Logger.Debug("Overwriting kubeconfig of cluster (runtimeID: %s) with value from kubeconfig-secret")
+		result.Kubeconfig = kubeconfig
+	}
+
+	return result, err
+}
+
+func (i *DefaultInventory) getOrCreateCluster(contractVersion int64, cluster *keb.Cluster) (*model.ClusterEntity, error) {
 	newClusterEntity := &model.ClusterEntity{
 		RuntimeID:  cluster.RuntimeID,
 		Runtime:    &cluster.RuntimeInput,
