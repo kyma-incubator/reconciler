@@ -179,8 +179,9 @@ func (r *Install) skippedComps() []string {
 		//extract the component name from the env-var and append it to the slice of skippedComps
 		if strings.HasPrefix(envPair[0], model.SkippedComponentEnvVarPrefix) && (envPair[1] == "1" || strings.ToLower(envPair[1]) == "true") {
 			compNameRaw := strings.Replace(envPair[0], model.SkippedComponentEnvVarPrefix, "", 1)
-			compNameUpper := strings.ReplaceAll(compNameRaw, "_", "-")
-			skippedComps = append(skippedComps, strings.ToLower(compNameUpper))
+			compName := strings.ToLower(strings.ReplaceAll(compNameRaw, "_", "-"))
+			skippedComps = append(skippedComps, compName)
+			r.logger.Infof("%s CRDs will be ignored from reconciliation (skipped by env-var)", compName)
 		}
 	}
 	return skippedComps
