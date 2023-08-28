@@ -116,9 +116,9 @@ func (r *Install) renderManifest(chartProvider chart.Provider, model *reconciler
 func (r *Install) renderCRDs(chartProvider chart.Provider, model *reconciler.Task) (string, error) {
 	var crdManifests []*chart.Manifest
 	var err error
-	var skippedComps = r.skippedComps()
+	var skippedComps = r.skippedComps(model)
 	if r.ignoreIstioCRD(model) {
-		r.logger.Info("Istio CRDs will be ignored from reconciliation")
+		r.logger.Infof("Istio CRDs will be ignored from reconciliation (correlation-ID: %s)", model.CorrelationID)
 		skippedComps = append(skippedComps, "istio")
 	}
 	crdManifests, err = chartProvider.RenderCRDFiltered(model.Version, skippedComps)
@@ -170,7 +170,7 @@ func (r *Install) ignoreIstioCRD(task *reconciler.Task) bool {
 	return false
 }
 
-func (r *Install) skippedComps() []string {
+func (r *Install) skippedComps(task *reconciler.Task) []string {
 	envVars := os.Environ()
 	skippedComps := []string{}
 	//Search for skipped components by checking all env-vars
@@ -181,7 +181,7 @@ func (r *Install) skippedComps() []string {
 			compNameRaw := strings.Replace(envPair[0], model.SkippedComponentEnvVarPrefix, "", 1)
 			compName := strings.ToLower(strings.ReplaceAll(compNameRaw, "_", "-"))
 			skippedComps = append(skippedComps, compName)
-			r.logger.Infof("%s CRDs will be ignored from reconciliation (skipped by env-var)", compName)
+			r.logger.Infof("%s CRDs will be ignored from reconciliation (skipped by env-var, correlation-ID: %s)", compName, task.CorrelationID)
 		}
 	}
 	return skippedComps

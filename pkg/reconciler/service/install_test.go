@@ -7,6 +7,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,7 +33,9 @@ func TestInstall(t *testing.T) {
 		for envKey, envValue := range testCase.envVars {
 			os.Setenv(envKey, envValue)
 		}
-		got := install.skippedComps()
+		got := install.skippedComps(&reconciler.Task{
+			CorrelationID: "unit-test-corrID",
+		})
 		require.Len(t, got, len(testCase.expected))
 		require.ElementsMatch(t, testCase.expected, got)
 	}
