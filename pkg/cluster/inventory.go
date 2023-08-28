@@ -56,16 +56,15 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 		return nil, err
 	}
 
+	var clientSet *kubernetes.Clientset
 	config, err := clientcmd.BuildConfigFromFlags("", "")
 	if err != nil {
-		repo.Logger.Error("Cluster inventory failed to create local Kubernetes config: %s", err)
-		return nil, err
-	}
-
-	clientSet, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		repo.Logger.Error("Cluster inventory failed to create Kubernetes clientSet: %s", err)
-		return nil, err
+		repo.Logger.Warn("Cluster inventory failed to create local Kubernetes config: %s", err)
+	} else {
+		clientSet, err = kubernetes.NewForConfig(config)
+		if err != nil {
+			repo.Logger.Warn("Cluster inventory failed to create local Kubernetes clientSet: %s", err)
+		}
 	}
 
 	return &DefaultInventory{repo, collector, clientSet}, nil
@@ -170,21 +169,23 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 	}
 
 	//TODO: clarify whether this is the right lookup!
-	secret, err := i.clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), result.RuntimeID, v1.GetOptions{})
-	if err != nil {
-		if k8serr.IsNotFound(err) {
-			i.Logger.Debugf("Cluster inventory cannot find a kubeconfig-secret for cluster with runtimeID %s", result.RuntimeID)
-		} else {
-			i.Logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret for cluster with runtimeID %s: %s", result.RuntimeID, err)
+	if i.clientSet != nil {
+		secret, err := i.clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), result.RuntimeID, v1.GetOptions{})
+		if err != nil {
+			if k8serr.IsNotFound(err) {
+				i.Logger.Debugf("Cluster inventory cannot find a kubeconfig-secret for cluster with runtimeID %s", result.RuntimeID)
+			} else {
+				i.Logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret for cluster with runtimeID %s: %s", result.RuntimeID, err)
+			}
+			return result, err
 		}
-		return result, err
-	}
 
-	if kubeconfig, found := secret.StringData["kubeconfig"]; !found {
-		i.Logger.Errorf("Kubeconfig-secret for runtime '%s' does not include the data-key 'kubeconfig'", result.RuntimeID)
-	} else {
-		i.Logger.Debug("Overwriting kubeconfig of cluster (runtimeID: %s) with value from kubeconfig-secret")
-		result.Kubeconfig = kubeconfig
+		if kubeconfig, found := secret.StringData["kubeconfig"]; !found {
+			i.Logger.Errorf("Kubeconfig-secret for runtime '%s' does not include the data-key 'kubeconfig'", result.RuntimeID)
+		} else {
+			i.Logger.Debug("Overwriting kubeconfig of cluster (runtimeID: %s) with value from kubeconfig-secret")
+			result.Kubeconfig = kubeconfig
+		}
 	}
 
 	return result, err
