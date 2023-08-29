@@ -3,11 +3,12 @@ package db
 import (
 	"context"
 	"fmt"
+	"strconv"
+
 	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"strconv"
 )
 
 func BootstrapNewPostgresContainer(ctx context.Context, settings PostgresContainerSettings) (ContainerBootstrap, error) {
@@ -61,7 +62,7 @@ func (s *PostgresContainer) Bootstrap(ctx context.Context) error {
 
 	execContainer := s.containerBaseName + "-" + s.executionID.String()
 
-	dbURL := func(port nat.Port) string {
+	dbURL := func(host string, port nat.Port) string {
 		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			s.username, s.password, s.host, port.Port(), s.database,
 		)
