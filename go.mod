@@ -41,7 +41,7 @@ require (
 	github.com/spf13/viper v1.16.0
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
 	github.com/stretchr/testify v1.8.4
-	github.com/testcontainers/testcontainers-go v0.13.0
+	github.com/testcontainers/testcontainers-go v0.18.0
 	github.com/traefik/yaegi v0.14.3
 	go.uber.org/zap v1.25.0
 	golang.org/x/text v0.12.0
