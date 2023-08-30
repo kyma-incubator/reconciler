@@ -4,8 +4,6 @@ go 1.21
 
 replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.5
 
-replace github.com/docker/docker => github.com/docker/docker v23.0.1+incompatible
-
 require (
 	k8s.io/api v0.28.0
 	k8s.io/apiextensions-apiserver v0.28.0
@@ -41,7 +39,7 @@ require (
 	github.com/spf13/viper v1.16.0
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
 	github.com/stretchr/testify v1.8.4
-	github.com/testcontainers/testcontainers-go v0.18.0
+	github.com/testcontainers/testcontainers-go v0.23.0
 	github.com/traefik/yaegi v0.14.3
 	go.uber.org/zap v1.25.0
 	golang.org/x/text v0.12.0
@@ -54,6 +52,7 @@ require (
 )
 
 require (
+	dario.cat/mergo v1.0.0 // indirect
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/BurntSushi/toml v1.2.1 // indirect
