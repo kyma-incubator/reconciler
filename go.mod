@@ -4,12 +4,16 @@ go 1.21
 
 replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.5
 
+replace github.com/docker/docker => github.com/docker/docker v23.0.7-0.20230730020554-801e90549aac+incompatible
+
 require (
 	k8s.io/api v0.28.0
 	k8s.io/apiextensions-apiserver v0.28.0
 	k8s.io/apimachinery v0.28.0
+	k8s.io/apiserver v0.28.0 // indirect
 	k8s.io/cli-runtime v0.28.0
 	k8s.io/client-go v0.28.0
+	k8s.io/component-base v0.28.0 // indirect
 	k8s.io/kubectl v0.28.0
 	sigs.k8s.io/yaml v1.3.0
 )
@@ -39,7 +43,7 @@ require (
 	github.com/spf13/viper v1.16.0
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
 	github.com/stretchr/testify v1.8.4
-	github.com/testcontainers/testcontainers-go v0.23.0
+	github.com/testcontainers/testcontainers-go v0.19.0
 	github.com/traefik/yaegi v0.14.3
 	go.uber.org/zap v1.25.0
 	golang.org/x/text v0.12.0
@@ -52,7 +56,6 @@ require (
 )
 
 require (
-	dario.cat/mergo v1.0.0 // indirect
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/BurntSushi/toml v1.2.1 // indirect
@@ -78,7 +81,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/docker/cli v24.0.5+incompatible // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
-	github.com/docker/docker v24.0.5+incompatible // indirect
+	github.com/docker/docker v24.0.4+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.7.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
@@ -184,7 +187,6 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.12.0 // indirect
-	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.14.0 // indirect
 	golang.org/x/oauth2 v0.11.0 // indirect
@@ -204,8 +206,6 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	istio.io/api v1.19.0-rc.0 // indirect
 	istio.io/istio v0.0.0-20230828165045-9fdfe780e1fc // indirect
-	k8s.io/apiserver v0.28.0 // indirect
-	k8s.io/component-base v0.28.0 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230811205723-7ac0aad8c58d // indirect
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b // indirect
