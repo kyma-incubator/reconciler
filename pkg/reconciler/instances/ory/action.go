@@ -47,27 +47,13 @@ type postDeleteAction struct {
 }
 
 const (
-	jwksSecretName     = "ory-oathkeeper-jwks-secret"
 	databaseSecretName = "ory-hydra-credentials"
 )
 
 var (
-	rolloutHydra = false
+	jwksNamespacedName = types.NamespacedName{Name: "ory-oathkeeper-jwks-secret", Namespace: oryNamespace}
+	rolloutHydra       = false
 )
-
-func getJwksSecretName(ctx context.Context, client kubernetes.Interface) (types.NamespacedName, error) {
-
-	deprecatedNamespaceExists, err := deprecation.NamespaceExists(ctx, client)
-	if err != nil {
-		return types.NamespacedName{}, err
-	}
-
-	if deprecatedNamespaceExists {
-		return types.NamespacedName{Name: jwksSecretName, Namespace: deprecation.Namespace}, nil
-	}
-
-	return types.NamespacedName{Name: jwksSecretName, Namespace: oryNamespace}, nil
-}
 
 func getDatabaseNamespacedName(ctx context.Context, client kubernetes.Interface) (types.NamespacedName, error) {
 
@@ -89,8 +75,8 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Failed to read postReconcileAction context")
 	}
 
-	if shouldSkipHydraReconcile(cfg) {
-		logger.Info("Skipping Hydra postReconcileAction")
+	if shouldSkipHydraResourceReconcile(cfg) {
+		logger.Info("Skipping Hydra resources in postReconcileAction, because Hydra reconciliation is no longer enabled")
 		return nil
 	}
 
@@ -122,17 +108,11 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Failed to read preReconcileAction context")
 	}
 
-	if shouldSkipHydraReconcile(cfg) {
-		logger.Info("Skipping Hydra preReconcileAction")
-		return nil
-	}
-
 	client, err := kubeClient.Clientset()
 	if err != nil {
 		return errors.Wrap(err, "Failed to retrieve clientset")
 	}
 
-	jwksNamespacedName, err := getJwksSecretName(context.Context, client)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get JWKS secret name")
 	}
@@ -150,6 +130,11 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 		if err := createSecret(context.Context, client, jwksNamespacedName, *jwksSecretObject, logger); err != nil {
 			return err
 		}
+	}
+
+	if shouldSkipHydraResourceReconcile(cfg) {
+		logger.Info("Skipping Hydra resources in preReconcileAction, because Hydra reconciliation is no longer enabled")
+		return nil
 	}
 
 	dbNamespacedName, err := getDatabaseNamespacedName(context.Context, client)
@@ -199,8 +184,11 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 }
 
 func (a *postDeleteAction) Run(context *service.ActionContext) error {
-	logger := context.Logger
-	client, err := context.KubeClient.Clientset()
+	logger, kubeClient, cfg, _, err := readActionContext(context)
+	if err != nil {
+		return errors.Wrap(err, "Failed to read postDeleteAction context")
+	}
+	client, err := kubeClient.Clientset()
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
 	}
@@ -209,6 +197,24 @@ func (a *postDeleteAction) Run(context *service.ActionContext) error {
 	err = a.oryFinalizersHandler.FindAndDeleteOryFinalizers(kubeconfig, logger)
 	if err != nil {
 		logger.Errorf("failed to delete finalizers from ory CRDs, %s", err.Error())
+	}
+
+	jwksSecretExists, err := a.secretExists(context.Context, client, jwksNamespacedName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get JWKS secret %s", jwksNamespacedName.Name)
+	}
+	if jwksSecretExists {
+		err = a.deleteSecret(context.Context, client, jwksNamespacedName, logger)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete DB secret %s", jwksNamespacedName.Name)
+		}
+	} else {
+		logger.Infof("JWKS Secret %s does not exist", jwksNamespacedName.Name)
+	}
+
+	if shouldSkipHydraResourceReconcile(cfg) {
+		logger.Info("Skipping Hydra resources in postDeleteAction, because Hydra reconciliation is no longer enabled")
+		return nil
 	}
 
 	dbNamespacedName, err := getDatabaseNamespacedName(context.Context, client)
@@ -227,24 +233,6 @@ func (a *postDeleteAction) Run(context *service.ActionContext) error {
 		}
 	} else {
 		logger.Infof("DB Secret %s does not exist", dbNamespacedName.Name)
-	}
-
-	jwksNamespacedName, err := getJwksSecretName(context.Context, client)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get JWKS secret name")
-	}
-
-	jwksSecretExists, err := a.secretExists(context.Context, client, jwksNamespacedName)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get JWKS secret %s", jwksNamespacedName.Name)
-	}
-	if jwksSecretExists {
-		err = a.deleteSecret(context.Context, client, jwksNamespacedName, logger)
-		if err != nil {
-			return errors.Wrapf(err, "failed to delete DB secret %s", jwksNamespacedName.Name)
-		}
-	} else {
-		logger.Infof("JWKS Secret %s does not exist", jwksNamespacedName.Name)
 	}
 
 	logger.Debugf("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
@@ -342,7 +330,7 @@ func isUpdate(diff map[string]string) bool {
 	return len(diff) != 0
 }
 
-func shouldSkipHydraReconcile(cfg *db.Config) bool {
+func shouldSkipHydraResourceReconcile(cfg *db.Config) bool {
 	// Starting with Kyma 2.19 Hydra is disabled by default, so we should skip reconciliation of it's not enabled.
 	// In addition, for the one-time migration where Hydra is installed in the hydra-deprecated namespace, the reconciliation
 	// is not skipped as this uses the 1.18.1 configuration where Hydra is still enabled.

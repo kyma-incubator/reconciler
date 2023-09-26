@@ -315,6 +315,52 @@ func TestDBSecretUpdate(t *testing.T) {
 		assert.Contains(t, secretData["dsn"], postgresURL)
 	})
 
+	t.Run("should use default postgres URL when deprecation namespace does not exist", func(t *testing.T) {
+		// given
+		t.Parallel()
+		values, err := unmarshalTestValues(postgresYaml)
+		require.NoError(t, err)
+		oldSecret := fixSecretWithNameDsn("test-memory-secret", inMemoryURL)
+		ctx := context.TODO()
+
+		k8sClient := fake.NewSimpleClientset()
+
+		// when
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
+
+		// then
+		require.NoError(t, errUpdate)
+		assert.NotEqual(t, 0, len(secretData))
+		assert.Contains(t, secretData, "postgresql-password")
+		assert.Contains(t, secretData["dsn"], postgresURL)
+	})
+
+	t.Run("should use deprecation postgres URL when deprecation namespace exists", func(t *testing.T) {
+		// given
+		t.Parallel()
+		values, err := unmarshalTestValues(postgresYaml)
+		require.NoError(t, err)
+		oldSecret := fixSecretWithNameDsn("test-memory-secret", inMemoryURL)
+		ctx := context.TODO()
+
+		deprecationNs := v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "hydra-deprecated",
+			},
+		}
+
+		k8sClient := fake.NewSimpleClientset(&deprecationNs)
+
+		// when
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
+
+		// then
+		require.NoError(t, errUpdate)
+		assert.NotEqual(t, 0, len(secretData))
+		assert.Contains(t, secretData, "postgresql-password")
+		assert.Contains(t, secretData["dsn"], hydraDeprecatedPostgresURL)
+	})
+
 	t.Run("Existing secret with memory persistence should be updated with gcloud config", func(t *testing.T) {
 		// given
 		t.Parallel()
