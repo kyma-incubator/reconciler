@@ -2,6 +2,7 @@ package ory
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/deprecation"
 	"path/filepath"
 	"testing"
 
@@ -408,6 +409,39 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.Equal(t, databaseSecretName, secret.Name)
 		require.Equal(t, oryNamespace, secret.Namespace)
 		require.Equal(t, inMemoryURL, secret.StringData["dsn"])
+	})
+
+	t.Run("should create Hydra database secret in hydra-deprecated namespace when hydra-deprecated namespace exist", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		values, err := unmarshalTestValues(postgresqlYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+
+		deprecationNs := v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "hydra-deprecated",
+			},
+		}
+
+		clientSet := fake.NewSimpleClientset(&deprecationNs)
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
+
+		// when
+		err = action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
+		kubeClient.AssertCalled(t, "Clientset")
+		secret, err := clientSet.CoreV1().Secrets(deprecation.Namespace).Get(actionContext.Context, databaseSecretName, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, databaseSecretName, secret.Name)
+		require.Equal(t, deprecation.Namespace, secret.Namespace)
+		require.Contains(t, secret.StringData["dsn"], "ory-postgresql.hydra-deprecated.svc.cluster.local:5432")
 	})
 
 	t.Run("should not update ory secret when secret exist and has a valid data", func(t *testing.T) {
