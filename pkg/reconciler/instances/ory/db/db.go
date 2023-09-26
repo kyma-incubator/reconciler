@@ -28,7 +28,7 @@ const (
 	disclaimerValue            = "DO NOT EDIT - This resource is managed by Kyma.\nAny modifications are discarded and the resource is reverted to the original state."
 )
 
-func getPostgresUrl(ctx context.Context, client kubernetes.Interface) (string, error) {
+func getPostgresURL(ctx context.Context, client kubernetes.Interface) (string, error) {
 
 	deprecatedNamespaceExists, err := deprecation.NamespaceExists(ctx, client)
 	if err != nil {
@@ -180,7 +180,7 @@ func (c *Config) updatePostgresqlConfig(ctx context.Context, client kubernetes.I
 }
 
 func (c *Config) preparePostgresDSN(ctx context.Context, client kubernetes.Interface) (string, error) {
-	postgresURL, err := getPostgresUrl(ctx, client)
+	postgresURL, err := getPostgresURL(ctx, client)
 	if err != nil {
 		return "", err
 	}

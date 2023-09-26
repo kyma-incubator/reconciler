@@ -278,7 +278,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.Equal(t, jwksNamespacedName.Namespace, secret.Namespace)
 		require.NotEmpty(t, secret.Data)
 
-		secret, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, databaseSecretName, metav1.GetOptions{})
+		secret, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.Error(t, err)
 		require.True(t, kerrors.IsNotFound(err))
 	})
@@ -307,7 +307,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.Equal(t, jwksNamespacedName.Namespace, secret.Namespace)
 		require.NotEmpty(t, secret.Data)
 
-		secret, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, databaseSecretName, metav1.GetOptions{})
+		secret, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.Error(t, err)
 		require.True(t, kerrors.IsNotFound(err))
 	})
@@ -404,9 +404,9 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
 		kubeClient.AssertCalled(t, "Clientset")
-		secret, err := clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, databaseSecretName, metav1.GetOptions{})
+		secret, err := clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.NoError(t, err)
-		require.Equal(t, databaseSecretName, secret.Name)
+		require.Equal(t, hydraDbResourceName, secret.Name)
 		require.Equal(t, oryNamespace, secret.Namespace)
 		require.Equal(t, inMemoryURL, secret.StringData["dsn"])
 	})
@@ -437,9 +437,9 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
 		kubeClient.AssertCalled(t, "Clientset")
-		secret, err := clientSet.CoreV1().Secrets(deprecation.Namespace).Get(actionContext.Context, databaseSecretName, metav1.GetOptions{})
+		secret, err := clientSet.CoreV1().Secrets(deprecation.Namespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.NoError(t, err)
-		require.Equal(t, databaseSecretName, secret.Name)
+		require.Equal(t, hydraDbResourceName, secret.Name)
 		require.Equal(t, deprecation.Namespace, secret.Namespace)
 		require.Contains(t, secret.StringData["dsn"], "ory-postgresql.hydra-deprecated.svc.cluster.local:5432")
 	})
@@ -464,9 +464,9 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
 		kubeClient.AssertCalled(t, "Clientset")
-		secret, err := clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, databaseSecretName, metav1.GetOptions{})
+		secret, err := clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.NoError(t, err)
-		require.Equal(t, databaseSecretName, secret.Name)
+		require.Equal(t, hydraDbResourceName, secret.Name)
 		require.Equal(t, oryNamespace, secret.Namespace)
 		require.Equal(t, "", secret.StringData["dsn"])
 		require.Equal(t, []byte(inMemoryURL), secret.Data["dsn"])
@@ -495,9 +495,9 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
 		kubeClient.AssertCalled(t, "Clientset")
-		secret, err := clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, databaseSecretName, metav1.GetOptions{})
+		secret, err := clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.NoError(t, err)
-		require.Equal(t, databaseSecretName, secret.Name)
+		require.Equal(t, hydraDbResourceName, secret.Name)
 		require.Equal(t, oryNamespace, secret.Namespace)
 		require.Contains(t, secret.StringData["dsn"], "postgres")
 		require.NotContains(t, secret.StringData["dsn"], inMemoryURL)
@@ -595,7 +595,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset(existingSecret)
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		_, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, databaseSecretName, metav1.GetOptions{})
+		_, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.False(t, kerrors.IsNotFound(err))
 		action := postDeleteAction{&oryAction{step: "post-delete"}, &oryFinalizersMock}
 
@@ -606,7 +606,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		kubeClient.AssertCalled(t, "Clientset")
 		kubeClient.AssertCalled(t, "Kubeconfig")
-		_, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, databaseSecretName, metav1.GetOptions{})
+		_, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.True(t, kerrors.IsNotFound(err))
 	})
 
@@ -635,7 +635,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		kubeClient.AssertCalled(t, "Clientset")
 		kubeClient.AssertCalled(t, "Kubeconfig")
-		_, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, databaseSecretName, metav1.GetOptions{})
+		_, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.NoError(t, err)
 	})
 
@@ -664,7 +664,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		kubeClient.AssertCalled(t, "Clientset")
 		kubeClient.AssertCalled(t, "Kubeconfig")
-		_, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, databaseSecretName, metav1.GetOptions{})
+		_, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.NoError(t, err)
 	})
 }
@@ -835,7 +835,7 @@ func newFakeServiceContext(factory chart.Factory, provider chart.Provider, clien
 func fixSecretMemory() *v1.Secret {
 	secret := v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      databaseSecretName,
+			Name:      hydraDbResourceName,
 			Namespace: oryNamespace,
 		},
 		Data: map[string][]byte{

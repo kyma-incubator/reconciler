@@ -47,7 +47,7 @@ type postDeleteAction struct {
 }
 
 const (
-	databaseSecretName = "ory-hydra-credentials"
+	hydraDbResourceName = "ory-hydra-credentials"
 )
 
 var (
@@ -63,10 +63,10 @@ func getDatabaseNamespacedName(ctx context.Context, client kubernetes.Interface)
 	}
 
 	if deprecatedNamespaceExists {
-		return types.NamespacedName{Name: databaseSecretName, Namespace: deprecation.Namespace}, nil
+		return types.NamespacedName{Name: hydraDbResourceName, Namespace: deprecation.Namespace}, nil
 	}
 
-	return types.NamespacedName{Name: databaseSecretName, Namespace: oryNamespace}, nil
+	return types.NamespacedName{Name: hydraDbResourceName, Namespace: oryNamespace}, nil
 }
 
 func (a *postReconcileAction) Run(context *service.ActionContext) error {
@@ -113,9 +113,6 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Failed to retrieve clientset")
 	}
 
-	if err != nil {
-		return errors.Wrap(err, "Failed to get JWKS secret name")
-	}
 	_, err = getSecret(context.Context, client, jwksNamespacedName)
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
