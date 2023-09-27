@@ -1,16 +1,16 @@
 package test
 
 import (
-	"testing"
-	"time"
-
 	"github.com/stretchr/testify/require"
 	v1apps "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/kubectl/pkg/util/podutils"
+	"testing"
+	"time"
 )
 
 func TestOryIntegration(t *testing.T) {
@@ -44,7 +44,6 @@ func TestOryIntegration(t *testing.T) {
 	t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
 		jwksName := "ory-oathkeeper-jwks-secret"
 		setup.ensureSecretIsDeployed(t, jwksName)
-		setup.ensureSecretIsDeployed(t, "ory-hydra-credentials")
 	})
 }
 
@@ -58,13 +57,11 @@ func TestOryIntegrationProduction(t *testing.T) {
 	setup := newOryTest(t)
 	defer setup.contextCancel()
 
-	t.Run("ensure that ory-hydra hpa is deployed", func(t *testing.T) {
+	t.Run("ensure that ory-hydra hpa is not deployed", func(t *testing.T) {
 		name := "ory-hydra"
-		hpa, err := setup.getHorizontalPodAutoscaler(name)
-		require.NoError(t, err)
-		require.GreaterOrEqual(t, int32(2), hpa.Status.CurrentReplicas)
-		require.Equal(t, int32(5), hpa.Spec.MaxReplicas)
-		setup.logger.Infof("HorizontalPodAutoscaler %v is deployed", hpa.Name)
+		_, err := setup.getHorizontalPodAutoscaler(name)
+		require.Error(t, err)
+		setup.logger.Infof("HorizontalPodAutoscaler is not deployed")
 	})
 
 	t.Run("ensure that ory-oathkeeper hpa is deployed", func(t *testing.T) {
@@ -76,14 +73,20 @@ func TestOryIntegrationProduction(t *testing.T) {
 		setup.logger.Infof("HorizontalPodAutoscaler %v is deployed", hpa.Name)
 	})
 
-	t.Run("ensure that ory-postgresql is deployed", func(t *testing.T) {
+	t.Run("ensure that ory-postgresql is not deployed", func(t *testing.T) {
 		name := "ory-postgresql"
-		sts, err := setup.getStatefulSet(name)
-		require.NoError(t, err)
+		_, err := setup.getStatefulSet(name)
+		require.Error(t, err)
+		require.True(t, kerrors.IsNotFound(err))
+	})
 
-		require.Equal(t, int32(1), sts.Status.Replicas)
-		require.Equal(t, int32(1), sts.Status.ReadyReplicas)
-		setup.logger.Infof("StatefulSet %v is deployed", sts.Name)
+	t.Run("ensure that ory-hydra pod is not deployed", func(t *testing.T) {
+		options := metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/name=hydra",
+		}
+		podsList, err := setup.getPods(options)
+		require.NoError(t, err)
+		require.Empty(t, podsList.Items)
 	})
 
 }
@@ -123,15 +126,13 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 		setup.logger.Infof("Single pod %v is deployed for app: oathkeeper", podsList.Items[0].Name)
 	})
 
-	t.Run("ensure that single ory-hydra pod is deployed", func(t *testing.T) {
+	t.Run("ensure that ory-hydra pod is not deployed", func(t *testing.T) {
 		options := metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/name=hydra",
-			FieldSelector: "status.phase=Running",
 		}
 		podsList, err := setup.getPods(options)
 		require.NoError(t, err)
-		require.Equal(t, 1, len(podsList.Items))
-		setup.logger.Infof("Single pod %v is deployed for app: hydra", podsList.Items[0].Name)
+		require.Empty(t, podsList.Items)
 	})
 }
 

@@ -1,6 +1,8 @@
 package db
 
 import (
+	"context"
+	"k8s.io/client-go/kubernetes/fake"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -97,10 +99,13 @@ func TestDBSecret(t *testing.T) {
 		values, err := unmarshalTestValues(postgresYaml)
 		require.NoError(t, err)
 		cfg, errNew := NewDBConfig(values)
-		dsnExpected := cfg.preparePostgresDSN()
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
+		dsnExpected, err := cfg.preparePostgresDSN(ctx, k8sClient)
+		require.NoError(t, err)
 
 		// when
-		secret, errGet := Get(name, values, logger)
+		secret, errGet := Get(ctx, k8sClient, name, values, logger)
 
 		// then
 		require.NoError(t, errNew)
@@ -118,9 +123,11 @@ func TestDBSecret(t *testing.T) {
 		require.NoError(t, err)
 		cfg, errNew := NewDBConfig(values)
 		dsnExpected := cfg.prepareGenericDSN()
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secret, errGet := Get(name, values, logger)
+		secret, errGet := Get(ctx, k8sClient, name, values, logger)
 
 		// then
 		require.NoError(t, errNew)
@@ -138,9 +145,11 @@ func TestDBSecret(t *testing.T) {
 		require.NoError(t, err)
 		cfg, errNew := NewDBConfig(values)
 		dsnExpected := cfg.prepareMySQLDSN()
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secret, errGet := Get(name, values, logger)
+		secret, errGet := Get(ctx, k8sClient, name, values, logger)
 
 		// then
 		require.NoError(t, errNew)
@@ -157,9 +166,11 @@ func TestDBSecret(t *testing.T) {
 		require.NoError(t, err)
 		cfg, errNew := NewDBConfig(values)
 		dsnExpected := cfg.prepareGenericDSN()
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secret, errGet := Get(name, values, logger)
+		secret, errGet := Get(ctx, k8sClient, name, values, logger)
 
 		// then
 		require.NoError(t, errNew)
@@ -174,9 +185,11 @@ func TestDBSecret(t *testing.T) {
 		name := types.NamespacedName{Name: "test-memory-secret", Namespace: "test"}
 		values, err := unmarshalTestValues(noDBYaml)
 		require.NoError(t, err)
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secret, err := Get(name, values, logger)
+		secret, err := Get(ctx, k8sClient, name, values, logger)
 
 		// then
 		require.NoError(t, err)
@@ -200,9 +213,11 @@ func TestDBSecretUpdate(t *testing.T) {
 		values, err := unmarshalTestValues(noDBYaml)
 		require.NoError(t, err)
 		oldSecret := fixSecretWithNameDsn("test-memory-secret", inMemoryURL)
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secretData, errUpdate := Update(values, oldSecret, logger)
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
 
 		// then
 		require.NoError(t, errUpdate)
@@ -216,9 +231,11 @@ func TestDBSecretUpdate(t *testing.T) {
 		require.NoError(t, err)
 		oldSecret := fixSecretWithNameDsn("test-postgres-secret",
 			"postgres://hydra:secretpw@ory-postgresql.kyma-system.svc.cluster.local:5432/db4hydra?sslmode=disable&max_conn_lifetime=10s")
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secretData, errUpdate := Update(values, oldSecret, logger)
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
 
 		// then
 		require.NoError(t, errUpdate)
@@ -232,9 +249,11 @@ func TestDBSecretUpdate(t *testing.T) {
 		require.NoError(t, err)
 		oldSecret := fixSecretWithNameDsn("test-postgres-secret",
 			"postgres://hydra:secretpw@ory-gcloud-sqlproxy.kyma-system:5432/db4hydra?sslmode=disable&max_conn_lifetime=10s")
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secretData, errUpdate := Update(values, oldSecret, logger)
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
 
 		// then
 		require.NoError(t, errUpdate)
@@ -248,9 +267,11 @@ func TestDBSecretUpdate(t *testing.T) {
 		require.NoError(t, err)
 		oldSecret := fixSecretWithNameDsn("test-postgres-secret",
 			"mysql://hydra:secretpw@tcp(mydb.mynamespace:1234)/db4hydra?parseTime=true&max_conn_lifetime=10s")
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secretData, errUpdate := Update(values, oldSecret, logger)
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
 
 		// then
 		require.NoError(t, errUpdate)
@@ -264,9 +285,11 @@ func TestDBSecretUpdate(t *testing.T) {
 		require.NoError(t, err)
 		oldSecret := fixSecretWithNameDsn("test-postgres-secret",
 			"cockroach://hydra:secretpw@mydb.mynamespace:1234/db4hydra?sslmode=disable&max_conn_lifetime=10s")
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secretData, errUpdate := Update(values, oldSecret, logger)
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
 
 		// then
 		require.NoError(t, errUpdate)
@@ -279,9 +302,11 @@ func TestDBSecretUpdate(t *testing.T) {
 		values, err := unmarshalTestValues(postgresYaml)
 		require.NoError(t, err)
 		oldSecret := fixSecretWithNameDsn("test-memory-secret", inMemoryURL)
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secretData, errUpdate := Update(values, oldSecret, logger)
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
 
 		// then
 		require.NoError(t, errUpdate)
@@ -290,15 +315,63 @@ func TestDBSecretUpdate(t *testing.T) {
 		assert.Contains(t, secretData["dsn"], postgresURL)
 	})
 
+	t.Run("should use default postgres URL when deprecation namespace does not exist", func(t *testing.T) {
+		// given
+		t.Parallel()
+		values, err := unmarshalTestValues(postgresYaml)
+		require.NoError(t, err)
+		oldSecret := fixSecretWithNameDsn("test-memory-secret", inMemoryURL)
+		ctx := context.TODO()
+
+		k8sClient := fake.NewSimpleClientset()
+
+		// when
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
+
+		// then
+		require.NoError(t, errUpdate)
+		assert.NotEqual(t, 0, len(secretData))
+		assert.Contains(t, secretData, "postgresql-password")
+		assert.Contains(t, secretData["dsn"], postgresURL)
+	})
+
+	t.Run("should use deprecation postgres URL when deprecation namespace exists", func(t *testing.T) {
+		// given
+		t.Parallel()
+		values, err := unmarshalTestValues(postgresYaml)
+		require.NoError(t, err)
+		oldSecret := fixSecretWithNameDsn("test-memory-secret", inMemoryURL)
+		ctx := context.TODO()
+
+		deprecationNs := v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "hydra-deprecated",
+			},
+		}
+
+		k8sClient := fake.NewSimpleClientset(&deprecationNs)
+
+		// when
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
+
+		// then
+		require.NoError(t, errUpdate)
+		assert.NotEqual(t, 0, len(secretData))
+		assert.Contains(t, secretData, "postgresql-password")
+		assert.Contains(t, secretData["dsn"], hydraDeprecatedPostgresURL)
+	})
+
 	t.Run("Existing secret with memory persistence should be updated with gcloud config", func(t *testing.T) {
 		// given
 		t.Parallel()
 		values, err := unmarshalTestValues(gcloudYaml)
 		require.NoError(t, err)
 		oldSecret := fixSecretWithNameDsn("test-memory-secret", inMemoryURL)
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secretData, errUpdate := Update(values, oldSecret, logger)
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
 
 		// then
 		require.NoError(t, errUpdate)
@@ -316,9 +389,11 @@ func TestDBSecretUpdate(t *testing.T) {
 		values, err := unmarshalTestValues(mysqlDBYaml)
 		require.NoError(t, err)
 		oldSecret := fixSecretWithNameDsn("test-memory-secret", inMemoryURL)
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secretData, errUpdate := Update(values, oldSecret, logger)
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
 
 		// then
 		require.NoError(t, errUpdate)
@@ -335,9 +410,11 @@ func TestDBSecretUpdate(t *testing.T) {
 		values, err := unmarshalTestValues(customDBYaml)
 		require.NoError(t, err)
 		oldSecret := fixSecretWithNameDsn("test-memory-secret", inMemoryURL)
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secretData, errUpdate := Update(values, oldSecret, logger)
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
 
 		// then
 		require.NoError(t, errUpdate)
@@ -355,9 +432,11 @@ func TestDBSecretUpdate(t *testing.T) {
 		require.NoError(t, err)
 		oldSecret := fixSecretWithNameDsn("test-postgres-secret",
 			"postgres://hydra:pass@ory-postgresql.kyma-system.svc.cluster.local:5432/db4hydra?sslmode=disable&max_conn_lifetime=10s")
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secretData, errUpdate := Update(values, oldSecret, logger)
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
 
 		// then
 		require.NoError(t, errUpdate)
@@ -372,9 +451,11 @@ func TestDBSecretUpdate(t *testing.T) {
 		require.NoError(t, err)
 		oldSecret := fixSecretWithNameDsn("test-postgres-secret",
 			"postgres://hydra:pass@ory-postgresql.kyma-system.svc.cluster.local:5432/db4hydra?sslmode=disable&max_conn_lifetime=10s")
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secretData, errUpdate := Update(values, oldSecret, logger)
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
 
 		// then
 		require.NoError(t, errUpdate)
@@ -392,9 +473,11 @@ func TestDBSecretUpdate(t *testing.T) {
 		require.NoError(t, err)
 		oldSecret := fixSecretWithNameDsn("test-postgres-secret",
 			"postgres://hydra:secretpw@ory-gcloud-sqlproxy.kyma-system:5432/db4hydra?sslmode=disable&max_conn_lifetime=10s")
+		ctx := context.TODO()
+		k8sClient := fake.NewSimpleClientset()
 
 		// when
-		secretData, errUpdate := Update(values, oldSecret, logger)
+		secretData, errUpdate := Update(ctx, k8sClient, values, oldSecret, logger)
 
 		// then
 		require.NoError(t, errUpdate)
