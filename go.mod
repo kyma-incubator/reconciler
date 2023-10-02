@@ -9,7 +9,7 @@ replace github.com/docker/docker => github.com/docker/docker v23.0.7-0.202307300
 require (
 	k8s.io/api v0.28.0
 	k8s.io/apiextensions-apiserver v0.28.0
-	k8s.io/apimachinery v0.28.0
+	k8s.io/apimachinery v0.28.2
 	k8s.io/apiserver v0.28.0 // indirect
 	k8s.io/cli-runtime v0.28.0
 	k8s.io/client-go v0.28.0
