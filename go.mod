@@ -27,7 +27,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/google/uuid v1.3.1
 	github.com/gorilla/mux v1.8.0
-	github.com/iancoleman/strcase v0.2.0
+	github.com/iancoleman/strcase v0.3.0
 	github.com/imdario/mergo v1.0.0
 	github.com/kyma-project/istio/operator v0.0.0-20230228134142-81d1f5a49e44
 	github.com/lib/pq v1.10.9
