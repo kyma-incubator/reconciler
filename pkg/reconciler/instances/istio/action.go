@@ -148,6 +148,6 @@ func checkIfIstioIsReady(context *service.ActionContext, k8sClient client.Client
 		context.Logger.Error("Istio CR is in Error state")
 		return nil
 	}
-	context.Logger.Debug("Waiting for Istio CR to get reconciled")
+	context.Logger.Debug("Waiting for Istio CR to finish reconciling")
 	return errors.New("Istio CR still reconciling")
 }
