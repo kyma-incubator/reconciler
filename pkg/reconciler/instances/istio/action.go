@@ -35,7 +35,7 @@ func NewIstioMainReconcileAction() *MainReconcileAction {
 }
 
 func (a *MainReconcileAction) Run(context *service.ActionContext) error {
-	context.Logger.Debug("Reconcile action of Iistio triggered")
+	context.Logger.Debug("Reconcile action of Istio triggered")
 
 	cfg, err := buildConfig(context)
 	if err != nil {
