@@ -3,6 +3,11 @@ package db
 // Config holds the database configuration values of Ory Hydra.
 type Config struct {
 	Global Global
+	Hydra  *HydraRoot `yaml:"hydra"`
+}
+
+type HydraRoot struct {
+	Enabled *bool `yaml:"enabled"`
 }
 
 // Global configuration of Ory Hydra and PostgresSQL

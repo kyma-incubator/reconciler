@@ -2,6 +2,7 @@ package ory
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/deprecation"
 	"path/filepath"
 	"testing"
 
@@ -37,7 +38,9 @@ const (
       ory:
         hydra:
           persistence:
-            enabled: false`
+            enabled: false
+    hydra:
+      enabled: true`
 
 	postgresqlYaml = `
     global:
@@ -46,7 +49,27 @@ const (
           persistence:
             enabled: true
             postgresql:
-              enabled: true`
+              enabled: true
+    hydra: 
+      enabled: true`
+
+	hydraDisabledYaml = `
+    global:
+      ory:
+        hydra:
+          persistence:
+            enabled: false
+    hydra: 
+      enabled: false`
+
+	hydraNotExistentYaml = `
+    global:
+      ory:
+        hydra:
+          persistence:
+            enabled: false
+    hydra: 
+      enabled: false`
 )
 
 const (
@@ -152,6 +175,60 @@ func Test_PostReconcile_Run(t *testing.T) {
 		hydraClient.AssertNotCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 
 	})
+
+	t.Run("should not skip Hydra resources, when Hydra is disabled", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		hydraClient := hydramocks.Syncer{}
+		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(errors.New("Unexpected invocation"))
+		rolloutMock := oryk8smock.RolloutHandler{}
+		rolloutMock.On("rolloutHydraDeployment", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(errors.New("Unexpected invocation"))
+		values, err := unmarshalTestValues(hydraDisabledYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient, &rolloutMock}
+
+		// when
+		err = action.Run(actionContext)
+
+		// Then
+		require.NoError(t, err)
+		hydraClient.AssertNotCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		hydraClient.AssertNotCalled(t, "rolloutHydraDeployment", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("should not continue with action, when Hydra is not configured in yaml", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		hydraClient := hydramocks.Syncer{}
+		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(errors.New("Failed to trigger hydra Synchronization"))
+		rolloutMock := oryk8smock.RolloutHandler{}
+		rolloutMock.On("rolloutHydraDeployment", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(errors.New("Unexpected invocation"))
+		values, err := unmarshalTestValues(hydraNotExistentYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient, &rolloutMock}
+
+		// when
+		err = action.Run(actionContext)
+
+		// Then
+		require.NoError(t, err)
+		hydraClient.AssertNotCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		hydraClient.AssertNotCalled(t, "rolloutHydraDeployment", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
 }
 
 func Test_PreInstallAction_Run(t *testing.T) {
@@ -177,19 +254,78 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		kubeClient.AssertNotCalled(t, "Clientset")
 	})
 
+	t.Run("should create Oathkeeper jwks, but not create database secret when hydra is disabled", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		values, err := unmarshalTestValues(hydraDisabledYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
+
+		// when
+		err = action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+
+		secret, err := clientSet.CoreV1().Secrets(jwksNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, jwksNamespacedName.Name, secret.Name)
+		require.Equal(t, jwksNamespacedName.Namespace, secret.Namespace)
+		require.NotEmpty(t, secret.Data)
+
+		secret, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
+		require.Error(t, err)
+		require.True(t, kerrors.IsNotFound(err))
+	})
+
+	t.Run("should create Oathkeeper jwks, but not create database secret when hydra is not in config", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		values, err := unmarshalTestValues(hydraNotExistentYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
+
+		// when
+		err = action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+
+		secret, err := clientSet.CoreV1().Secrets(jwksNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, jwksNamespacedName.Name, secret.Name)
+		require.Equal(t, jwksNamespacedName.Namespace, secret.Namespace)
+		require.NotEmpty(t, secret.Data)
+
+		secret, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
+		require.Error(t, err)
+		require.True(t, kerrors.IsNotFound(err))
+	})
+
 	t.Run("should not perform any action when kubernetes clientset returned an error", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
-		emptyMap := make(map[string]interface{})
-		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
+		values, err := unmarshalTestValues(memoryYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("cannot get secret"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
 		action := preReconcileAction{&oryAction{step: "pre-install"}}
 
 		// when
-		err := action.Run(actionContext)
+		err = action.Run(actionContext)
 
 		// then
 		require.Error(t, err)
@@ -242,10 +378,10 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
 		kubeClient.AssertCalled(t, "Clientset")
-		secret, err := clientSet.CoreV1().Secrets(jwksNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
+		secret, err := clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
 		require.NoError(t, err)
 		require.Equal(t, jwksNamespacedName.Name, secret.Name)
-		require.Equal(t, jwksNamespacedName.Namespace, secret.Namespace)
+		require.Equal(t, oryNamespace, secret.Namespace)
 		require.Equal(t, getJWKSData(), secret.Data)
 	})
 
@@ -253,25 +389,59 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
-		emptyMap := make(map[string]interface{})
-		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
+		values, err := unmarshalTestValues(memoryYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		action := preReconcileAction{&oryAction{step: "pre-install"}}
 
 		// when
-		err := action.Run(actionContext)
+		err = action.Run(actionContext)
 
 		// then
 		require.NoError(t, err)
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
 		kubeClient.AssertCalled(t, "Clientset")
-		secret, err := clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
+		secret, err := clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.NoError(t, err)
-		require.Equal(t, dbNamespacedName.Name, secret.Name)
-		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
+		require.Equal(t, hydraDbResourceName, secret.Name)
+		require.Equal(t, oryNamespace, secret.Namespace)
 		require.Equal(t, inMemoryURL, secret.StringData["dsn"])
+	})
+
+	t.Run("should create Hydra database secret in hydra-deprecated namespace when hydra-deprecated namespace exist", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		values, err := unmarshalTestValues(postgresqlYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+
+		deprecationNs := v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "hydra-deprecated",
+			},
+		}
+
+		clientSet := fake.NewSimpleClientset(&deprecationNs)
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
+
+		// when
+		err = action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
+		kubeClient.AssertCalled(t, "Clientset")
+		secret, err := clientSet.CoreV1().Secrets(deprecation.Namespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, hydraDbResourceName, secret.Name)
+		require.Equal(t, deprecation.Namespace, secret.Namespace)
+		require.Contains(t, secret.StringData["dsn"], "ory-postgresql.hydra-deprecated.svc.cluster.local:5432")
 	})
 
 	t.Run("should not update ory secret when secret exist and has a valid data", func(t *testing.T) {
@@ -294,10 +464,10 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
 		kubeClient.AssertCalled(t, "Clientset")
-		secret, err := clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
+		secret, err := clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.NoError(t, err)
-		require.Equal(t, dbNamespacedName.Name, secret.Name)
-		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
+		require.Equal(t, hydraDbResourceName, secret.Name)
+		require.Equal(t, oryNamespace, secret.Namespace)
 		require.Equal(t, "", secret.StringData["dsn"])
 		require.Equal(t, []byte(inMemoryURL), secret.Data["dsn"])
 	})
@@ -325,10 +495,10 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
 		kubeClient.AssertCalled(t, "Clientset")
-		secret, err := clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
+		secret, err := clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.NoError(t, err)
-		require.Equal(t, dbNamespacedName.Name, secret.Name)
-		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
+		require.Equal(t, hydraDbResourceName, secret.Name)
+		require.Equal(t, oryNamespace, secret.Namespace)
 		require.Contains(t, secret.StringData["dsn"], "postgres")
 		require.NotContains(t, secret.StringData["dsn"], inMemoryURL)
 	})
@@ -340,6 +510,8 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		oryFinalizersMock := oryk8smock.OryFinalizersHandler{}
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
+		emptyMap := make(map[string]interface{})
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("failed to retrieve native Kubernetes GO client"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
@@ -363,6 +535,8 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 			Return(errors.New("FindAndDeleteOryFinalizers error"))
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
+		emptyMap := make(map[string]interface{})
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
@@ -385,11 +559,13 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 			Return(errors.New("FindAndDeleteOryFinalizers error"))
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
+		emptyMap := make(map[string]interface{})
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
 		existingSecret := fixSecretJwks()
 		clientSet := fake.NewSimpleClientset(existingSecret)
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		_, err := clientSet.CoreV1().Secrets(jwksNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
+		_, err := clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
 		require.False(t, kerrors.IsNotFound(err))
 		action := postDeleteAction{&oryAction{step: "post-delete"}, &oryFinalizersMock}
 
@@ -400,7 +576,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		kubeClient.AssertCalled(t, "Clientset")
 		kubeClient.AssertCalled(t, "Kubeconfig")
-		_, err = clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
+		_, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
 		require.True(t, kerrors.IsNotFound(err))
 	})
 
@@ -412,11 +588,14 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 			Return(errors.New("FindAndDeleteOryFinalizers error"))
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
+		values, err := unmarshalTestValues(postgresqlYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
 		existingSecret := fixSecretMemory()
 		clientSet := fake.NewSimpleClientset(existingSecret)
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		_, err := clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
+		_, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.False(t, kerrors.IsNotFound(err))
 		action := postDeleteAction{&oryAction{step: "post-delete"}, &oryFinalizersMock}
 
@@ -427,8 +606,66 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		kubeClient.AssertCalled(t, "Clientset")
 		kubeClient.AssertCalled(t, "Kubeconfig")
-		_, err = clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
+		_, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
 		require.True(t, kerrors.IsNotFound(err))
+	})
+
+	t.Run("should skip deletion of Hydra DB secret when hydra is disabled", func(t *testing.T) {
+		// given
+		oryFinalizersMock := oryk8smock.OryFinalizersHandler{}
+		oryFinalizersMock.On("FindAndDeleteOryFinalizers",
+			mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(errors.New("FindAndDeleteOryFinalizers error"))
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		values, err := unmarshalTestValues(hydraDisabledYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		existingSecret := fixSecretMemory()
+		clientSet := fake.NewSimpleClientset(existingSecret)
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+
+		action := postDeleteAction{&oryAction{step: "post-delete"}, &oryFinalizersMock}
+
+		// when
+		err = action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		kubeClient.AssertCalled(t, "Clientset")
+		kubeClient.AssertCalled(t, "Kubeconfig")
+		_, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
+		require.NoError(t, err)
+	})
+
+	t.Run("should skip deletion of Hydra DB secret when hydra is not in config", func(t *testing.T) {
+		// given
+		oryFinalizersMock := oryk8smock.OryFinalizersHandler{}
+		oryFinalizersMock.On("FindAndDeleteOryFinalizers",
+			mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(errors.New("FindAndDeleteOryFinalizers error"))
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		values, err := unmarshalTestValues(hydraNotExistentYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		existingSecret := fixSecretMemory()
+		clientSet := fake.NewSimpleClientset(existingSecret)
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+
+		action := postDeleteAction{&oryAction{step: "post-delete"}, &oryFinalizersMock}
+
+		// when
+		err = action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		kubeClient.AssertCalled(t, "Clientset")
+		kubeClient.AssertCalled(t, "Kubeconfig")
+		_, err = clientSet.CoreV1().Secrets(oryNamespace).Get(actionContext.Context, hydraDbResourceName, metav1.GetOptions{})
+		require.NoError(t, err)
 	})
 }
 
@@ -462,7 +699,7 @@ func TestOryDbSecret(t *testing.T) {
 			values, err := helm.Configuration(component)
 			require.NoError(t, err)
 
-			secretObject, err := db.Get(name, values, logger)
+			secretObject, err := db.Get(ctx, k8sClient, name, values, logger)
 			require.NoError(t, err)
 
 			if test.PreCreateSecret {
@@ -508,7 +745,7 @@ func TestOryDbSecret_Update(t *testing.T) {
 		// given
 		k8sClient := fake.NewSimpleClientset()
 
-		dbSecretObject, err := db.Get(name, values, logger)
+		dbSecretObject, err := db.Get(ctx, k8sClient, name, values, logger)
 		require.NoError(t, err)
 
 		err = createSecret(ctx, k8sClient, name, *dbSecretObject, logger)
@@ -525,7 +762,7 @@ func TestOryDbSecret_Update(t *testing.T) {
 			"postgresql-replication-password": []byte(existingSecret.StringData["postgresql-replication-password"]),
 		}
 
-		newSecretData, err := db.Update(values, existingSecret, logger)
+		newSecretData, err := db.Update(ctx, k8sClient, values, existingSecret, logger)
 		require.NoError(t, err)
 
 		// when
@@ -547,7 +784,7 @@ func TestOryDbSecret_Update(t *testing.T) {
 		require.NoError(t, err)
 
 		existingSecret.StringData = testMap
-		newSecretData, err := db.Update(values, existingSecret, logger)
+		newSecretData, err := db.Update(ctx, k8sClient, values, existingSecret, logger)
 
 		// when
 		check := isUpdate(newSecretData)
@@ -598,8 +835,8 @@ func newFakeServiceContext(factory chart.Factory, provider chart.Provider, clien
 func fixSecretMemory() *v1.Secret {
 	secret := v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      dbNamespacedName.Name,
-			Namespace: dbNamespacedName.Namespace,
+			Name:      hydraDbResourceName,
+			Namespace: oryNamespace,
 		},
 		Data: map[string][]byte{
 			"dsn":           []byte(inMemoryURL),
@@ -620,7 +857,7 @@ func fixSecretJwks() *v1.Secret {
 	secret := v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jwksNamespacedName.Name,
-			Namespace: jwksNamespacedName.Namespace,
+			Namespace: oryNamespace,
 		},
 		Data: getJWKSData(),
 	}
@@ -631,7 +868,7 @@ func fixOryHydraDeployment() *v1apps.Deployment {
 	return &v1apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "ory-hydra",
-			Namespace:  dbNamespacedName.Namespace,
+			Namespace:  oryNamespace,
 			Generation: 1,
 		},
 	}

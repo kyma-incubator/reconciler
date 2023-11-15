@@ -4,6 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"reflect"
+	"strings"
+	"time"
+
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"go.uber.org/zap"
@@ -13,20 +18,17 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
-	"os"
-	"reflect"
-	"strings"
-	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 )
 
 const (
-	CRDComponent             = "CRDs"
-	CleanupComponent         = "cleaner"
-	DeleteStrategyKey        = "delete_strategy"
-	tblConfiguration  string = "inventory_cluster_configs"
+	CRDComponent                 = "CRDs"
+	CleanupComponent             = "cleaner"
+	DeleteStrategyKey            = "delete_strategy"
+	tblConfiguration             = "inventory_cluster_configs"
+	SkippedComponentEnvVarPrefix = "SKIP_COMPONENT_"
 )
 
 var (
@@ -179,7 +181,7 @@ func (c *ClusterConfigurationEntity) nonMigratedComponents(cfg *ReconciliationSe
 			continue
 		}
 		//ignore component if the SKIP_COMPONENT_XYZ env-var is defined
-		envVar := fmt.Sprintf("SKIP_COMPONENT_%s", strings.ReplaceAll(strings.ToUpper(comp.Component), "-", "_"))
+		envVar := fmt.Sprintf("%s%s", SkippedComponentEnvVarPrefix, strings.ReplaceAll(strings.ToUpper(comp.Component), "-", "_"))
 		skipComp := os.Getenv(envVar)
 		if strings.ToLower(skipComp) == "true" || skipComp == "1" {
 			logger.Infof("Skipping component %s (env-var: %s = %s)", comp.Component, envVar, skipComp)

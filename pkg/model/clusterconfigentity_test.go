@@ -3,12 +3,13 @@ package model
 import (
 	"context"
 	"fmt"
+	"os"
+	"testing"
+
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/test"
-	"os"
-	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/stretchr/testify/require"
@@ -510,7 +511,7 @@ func TestReconciliationSequenceWithMigratedComponents(t *testing.T) {
 				},
 			},
 			err:     nil,
-			envVars: map[string]string{"SKIP_COMPONENT_COMP3": "1"},
+			envVars: map[string]string{fmt.Sprintf("%s%s", SkippedComponentEnvVarPrefix, "COMP3"): "1"},
 		},
 	}
 

@@ -1,6 +1,8 @@
 package istio
 
 import (
+	"time"
+
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/get"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
@@ -12,7 +14,6 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"time"
 )
 
 var listOptions = []client.ListOption{client.InNamespace("kyma-system")}
@@ -34,7 +35,7 @@ func NewIstioMainReconcileAction() *MainReconcileAction {
 }
 
 func (a *MainReconcileAction) Run(context *service.ActionContext) error {
-	context.Logger.Debug("Reconcile action of istio triggered")
+	context.Logger.Debug("Reconcile action of Istio triggered")
 
 	cfg, err := buildConfig(context)
 	if err != nil {
@@ -107,6 +108,7 @@ func installIstioCR(context *service.ActionContext, istioVersion string, k8sClie
 	}
 
 	if len(istioList.Items) == 0 {
+		context.Logger.Debug("Creating new Istio CR")
 		err = k8sClient.Create(context.Context, &crManifest)
 		if err != nil {
 			return err
@@ -137,13 +139,15 @@ func checkIfIstioIsReady(context *service.ActionContext, k8sClient client.Client
 	}
 	oldestCR := getOldestCR(&istioList)
 	if oldestCR.Status.State == "Ready" {
+		context.Logger.Info("Istio CR is in Ready state")
 		return nil
 	} else if oldestCR.Status.State == "Warning" {
-		context.Logger.Warn("Istio is in warning state")
+		context.Logger.Warn("Istio CR is in Warning state")
 		return nil
 	} else if oldestCR.Status.State == "Error" {
-		return errors.New("Istio CR is in error state")
+		context.Logger.Error("Istio CR is in Error state")
+		return nil
 	}
-	context.Logger.Debug("Waiting for Istio module to become ready")
-	return errors.New("Istio module is not ready")
+	context.Logger.Debug("Waiting for Istio CR to finish reconciling")
+	return errors.New("Istio CR still reconciling")
 }

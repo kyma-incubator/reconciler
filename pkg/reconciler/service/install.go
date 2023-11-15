@@ -3,6 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -113,12 +116,12 @@ func (r *Install) renderManifest(chartProvider chart.Provider, model *reconciler
 func (r *Install) renderCRDs(chartProvider chart.Provider, model *reconciler.Task) (string, error) {
 	var crdManifests []*chart.Manifest
 	var err error
+	var skippedComps = r.skippedComps(model)
 	if r.ignoreIstioCRD(model) {
-		r.logger.Info("Istio CRDs will be ignored from reconciliation")
-		crdManifests, err = chartProvider.RenderCRDFiltered(model.Version, []string{"istio"})
-	} else {
-		crdManifests, err = chartProvider.RenderCRD(model.Version)
+		r.logger.Infof("Istio CRDs will be ignored from reconciliation (correlation-ID: %s)", model.CorrelationID)
+		skippedComps = append(skippedComps, "istio")
 	}
+	crdManifests, err = chartProvider.RenderCRDFiltered(model.Version, skippedComps)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to get CRD manifests for Kyma version '%s'", model.Version)
 		r.logger.Errorf("%s: %s", msg, err)
@@ -165,4 +168,21 @@ func (r *Install) ignoreIstioCRD(task *reconciler.Task) bool {
 	}
 
 	return false
+}
+
+func (r *Install) skippedComps(task *reconciler.Task) []string {
+	envVars := os.Environ()
+	skippedComps := []string{}
+	//Search for skipped components by checking all env-vars
+	for _, envVar := range envVars {
+		envPair := strings.SplitN(envVar, "=", 2)
+		//extract the component name from the env-var and append it to the slice of skippedComps
+		if strings.HasPrefix(envPair[0], model.SkippedComponentEnvVarPrefix) && (envPair[1] == "1" || strings.ToLower(envPair[1]) == "true") {
+			compNameRaw := strings.Replace(envPair[0], model.SkippedComponentEnvVarPrefix, "", 1)
+			compName := strings.ToLower(strings.ReplaceAll(compNameRaw, "_", "-"))
+			skippedComps = append(skippedComps, compName)
+			r.logger.Infof("%s CRDs will be ignored from reconciliation (skipped by env-var, correlation-ID: %s)", compName, task.CorrelationID)
+		}
+	}
+	return skippedComps
 }
