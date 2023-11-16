@@ -7,12 +7,12 @@ replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.5
 replace github.com/docker/docker => github.com/docker/docker v23.0.7-0.20230730020554-801e90549aac+incompatible
 
 require (
-	k8s.io/api v0.28.0
+	k8s.io/api v0.28.4
 	k8s.io/apiextensions-apiserver v0.28.0
-	k8s.io/apimachinery v0.28.0
+	k8s.io/apimachinery v0.28.4
 	k8s.io/apiserver v0.28.0 // indirect
 	k8s.io/cli-runtime v0.28.0
-	k8s.io/client-go v0.28.0
+	k8s.io/client-go v0.28.4
 	k8s.io/component-base v0.28.0 // indirect
 	k8s.io/kubectl v0.28.0
 	sigs.k8s.io/yaml v1.3.0
