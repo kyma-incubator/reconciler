@@ -45,18 +45,18 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	}
 	context.Task.Configuration["global.kubeHost"] = strings.TrimPrefix(host, "https://api.")
 
+	// checking Istio
+	context.Logger.Debug("Checking if Istio CRDs are present on the cluster")
+	if istioCRDsAreMissing(context) {
+		return nil
+	}
+
 	if context.Task.Type == model.OperationTypeDelete {
 		context.Logger.Debug("Requested cluster removal - removing component")
 		if err := a.Commands.Remove(context); err != nil {
 			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err
 		}
-		return nil
-	}
-
-	// checking Istio
-	context.Logger.Debug("Checking Istio")
-	if istioCRDsAreMissing(context) {
 		return nil
 	}
 
