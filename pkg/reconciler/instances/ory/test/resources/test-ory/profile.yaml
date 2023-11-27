@@ -1,4 +1,0 @@
-global:
-  postgresql:
-    postgresqlDatabase: testdb2
-    postgresqlPassword: testerpw
