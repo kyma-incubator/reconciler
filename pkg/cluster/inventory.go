@@ -172,7 +172,7 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 
 	//TODO: clarify whether this is the right lookup!
 	if i.clientSet != nil {
-		secret, err := i.clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), result.RuntimeID, v1.GetOptions{})
+		secret, err := i.clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), fmt.Sprintf("kubeconfig-%s", result.RuntimeID), v1.GetOptions{})
 		if err != nil {
 			if k8serr.IsNotFound(err) {
 				i.Logger.Debugf("Cluster inventory cannot find a kubeconfig-secret for cluster with runtimeID %s", result.RuntimeID)
