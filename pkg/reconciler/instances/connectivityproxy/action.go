@@ -46,7 +46,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	context.Task.Configuration["global.kubeHost"] = strings.TrimPrefix(host, "https://api.")
 
 	if istioCRDsAreMissing(context) {
-		context.Logger.Warn("Istio CRDs are missing on the the cluster. Skipping reconcilion")
+		context.Logger.Warn("Istio CRDs are missing on the the cluster. Skipping reconciliation")
 		return nil
 	}
 
@@ -97,7 +97,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	context.Logger.Debug("Service Binding Secret check")
 
 	if bindingSecret == nil {
-		context.Logger.Warnf("Skipping reconcilion, %s", err)
+		context.Logger.Warnf("Skipping reconciliation, %s", err)
 		return nil
 	}
 
