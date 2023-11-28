@@ -46,7 +46,6 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	context.Task.Configuration["global.kubeHost"] = strings.TrimPrefix(host, "https://api.")
 
 	// checking Istio
-	context.Logger.Debug("Checking if Istio CRDs are present on the cluster")
 	if istioCRDsAreMissing(context) {
 		return nil
 	}
