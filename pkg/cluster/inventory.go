@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/rest"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -57,7 +57,7 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 	}
 
 	var clientSet *kubernetes.Clientset
-	config, err := clientcmd.BuildConfigFromFlags("", "")
+	config, err := rest.InClusterConfig()
 	if err != nil {
 		repo.Logger.Warn("Cluster inventory failed to create local Kubernetes config: %s", err)
 	} else {
