@@ -175,19 +175,23 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 		kubeconfigName := fmt.Sprintf("kubeconfig-%s", result.RuntimeID)
 		secret, err := i.clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), kubeconfigName, v1.GetOptions{})
 		if err != nil {
-			if k8serr.IsNotFound(err) {
+			if k8serr.IsNotFound(err) { //accepted failure
 				i.Logger.Debugf("Cluster inventory cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s", kubeconfigName, result.RuntimeID)
+				return result, nil
+			} else if k8serr.IsForbidden(err) { //configuration failure
+				i.Logger.Warnf("Cluster inventory is not allowed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s", kubeconfigName, result.RuntimeID, err)
+				return result, nil
 			} else {
 				i.Logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s", kubeconfigName, result.RuntimeID, err)
 			}
 			return result, err
 		}
 
-		if kubeconfig, found := secret.StringData["config"]; !found {
+		if kubeconfig, found := secret.Data["config"]; !found {
 			i.Logger.Errorf("Kubeconfig-secret '%s' for runtime '%s' does not include the data-key 'config'", kubeconfigName, result.RuntimeID)
 		} else {
 			i.Logger.Debugf("Overwriting kubeconfig of cluster (runtimeID: %s) with value from kubeconfig-secret '%s'", result.RuntimeID, kubeconfigName)
-			result.Kubeconfig = kubeconfig
+			result.Kubeconfig = string(kubeconfig)
 		}
 	}
 
