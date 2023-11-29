@@ -65,7 +65,7 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 		if err == nil {
 			repo.Logger.Info("Cluster inventory successfully created a local cluster client")
 		} else {
-			repo.Logger.Warn("Cluster inventory failed to create local Kubernetes clientSet: %s", err)
+			repo.Logger.Error("Cluster inventory failed to create local Kubernetes clientSet: %s", err)
 		}
 	}
 
@@ -170,7 +170,7 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 		return result, err
 	}
 
-	//TODO: clarify whether this is the right lookup!
+	//Overwrite kubeconfig provided as K8s secret
 	if i.clientSet != nil {
 		kubeconfigName := fmt.Sprintf("kubeconfig-%s", result.RuntimeID)
 		secret, err := i.clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), kubeconfigName, v1.GetOptions{})
