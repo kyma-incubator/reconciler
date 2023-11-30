@@ -190,7 +190,7 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 		if kubeconfig, found := secret.Data["config"]; !found {
 			i.Logger.Errorf("Kubeconfig-secret '%s' for runtime '%s' does not include the data-key 'config'", kubeconfigName, result.RuntimeID)
 		} else {
-			i.Logger.Debugf("Overwriting kubeconfig of cluster (runtimeID: %s) with value from kubeconfig-secret '%s'", result.RuntimeID, kubeconfigName)
+			i.Logger.Infof("Overwriting kubeconfig of cluster (runtimeID: %s) with value from kubeconfig-secret '%s'", result.RuntimeID, kubeconfigName)
 			result.Kubeconfig = string(kubeconfig)
 		}
 	}
