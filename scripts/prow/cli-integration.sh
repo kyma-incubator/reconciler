@@ -8,3 +8,4 @@ kyma version --client
 popd || exit
 kyma provision k3d --ci
 kyma deploy --ci --concurrency=8 --profile=evaluation --source=main
+#make -C "../../kyma-project/kyma/tests/fast-integration" "ci"
