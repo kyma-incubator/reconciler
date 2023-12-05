@@ -13,3 +13,7 @@ popd || exit
 kyma provision k3d --ci
 kyma deploy --ci --concurrency=8 --profile=evaluation --source="${KYMA_SOURCE}"
 git reset --hard && git remote update && git fetch --all >/dev/null 2>&1 && git checkout "${KYMA_SOURCE}"
+<<<<<<< Updated upstream
+=======
+#make -C "../../kyma-project/kyma/tests/fast-integration" "ci"
+>>>>>>> Stashed changes
