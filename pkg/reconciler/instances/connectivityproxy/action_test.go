@@ -67,12 +67,38 @@ func TestAction(t *testing.T) {
 		},
 	}
 
-	t.Run("Should install app if binding exists and app is missing", func(t *testing.T) {
+	virtServicesList := &unstructured.UnstructuredList{
+		Items: []unstructured.Unstructured{
+			{
+				Object: map[string]interface{}{
+					"test": "me",
+				},
+			},
+		},
+	}
+
+	gatewaysList := &unstructured.UnstructuredList{
+		Items: []unstructured.Unstructured{
+			{
+				Object: map[string]interface{}{
+					"test": "me",
+				},
+			},
+		},
+	}
+
+	t.Run("Should install app if binding exists, Istio CRDs are present and app is missing", func(t *testing.T) {
 
 		kubeClient, context, action, loader, commands := setupActionTestEnv()
 
 		kubeClient.On("GetHost").Return("https://api.example.com")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(nil, nil)
+
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=virtualservices.networking.istio.io"}).Return(virtServicesList, nil)
+
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=gateway.networking.istio.io"}).Return(gatewaysList, nil)
 
 		loader.On("FindBindingOperator", context).Return(binding, nil)
 		loader.On("FindSecret", context, binding).Return(secret, nil)
@@ -91,12 +117,41 @@ func TestAction(t *testing.T) {
 		kubeClient.AssertExpectations(t)
 	})
 
+	t.Run("Should do nothing if Istio CRDs are missing", func(t *testing.T) {
+
+		kubeClient, context, action, loader, commands := setupActionTestEnv()
+
+		kubeClient.On("GetHost").Return("https://api.example.com")
+
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=virtualservices.networking.istio.io"}).
+			Return(&unstructured.UnstructuredList{}, nil)
+
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=gateway.networking.istio.io"}).
+			Return(&unstructured.UnstructuredList{}, nil)
+
+		err := action.Run(context)
+		require.NoError(t, err)
+
+		commands.AssertExpectations(t)
+		loader.AssertExpectations(t)
+		kubeClient.AssertExpectations(t)
+	})
+
 	t.Run("Should remove app if binding is missing and app exists", func(t *testing.T) {
 
 		kubeClient, context, action, loader, commands := setupActionTestEnv()
 
 		kubeClient.On("GetHost").Return("https://api.example.com")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(statefulset, nil)
+
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=virtualservices.networking.istio.io"}).Return(virtServicesList, nil)
+
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=gateway.networking.istio.io"}).Return(gatewaysList, nil)
+
 		loader.On("FindBindingOperator", context).Return(nil, nil)
 
 		commands.On("Remove", context).Return(nil)
@@ -114,6 +169,11 @@ func TestAction(t *testing.T) {
 
 		kubeClient.On("GetHost").Return("https://api.example.com")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(statefulset, nil)
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=virtualservices.networking.istio.io"}).Return(virtServicesList, nil)
+
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=gateway.networking.istio.io"}).Return(gatewaysList, nil)
 
 		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return([]byte("testme"), nil)
 		commands.On("CreateServiceMappingConfigMap", context, "kyma-system", "connectivity-proxy-service-mappings").Return(nil)
@@ -138,6 +198,12 @@ func TestAction(t *testing.T) {
 		kubeClient.On("GetHost").Return("https://api.example.com")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(nil, nil)
 
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=virtualservices.networking.istio.io"}).Return(virtServicesList, nil)
+
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=gateway.networking.istio.io"}).Return(gatewaysList, nil)
+
 		loader.On("FindBindingOperator", context).Return(nil, nil)
 
 		err := action.Run(context)
@@ -153,6 +219,12 @@ func TestAction(t *testing.T) {
 
 		kubeClient.On("GetHost").Return("https://api.example.com")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(nil, nil)
+
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=virtualservices.networking.istio.io"}).Return(virtServicesList, nil)
+
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=gateway.networking.istio.io"}).Return(gatewaysList, nil)
 
 		loader.On("FindBindingOperator", context).Return(binding, nil)
 		loader.On("FindSecret", context, binding).Return(nil, errors.New("some error"))
@@ -179,6 +251,12 @@ func TestAction(t *testing.T) {
 
 		kubeClient.On("GetHost").Return("https://api.example.com")
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(statefulset, nil)
+
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=virtualservices.networking.istio.io"}).Return(virtServicesList, nil)
+
+		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
+			FieldSelector: "metadata.name=gateway.networking.istio.io"}).Return(gatewaysList, nil)
 
 		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return([]byte("testme"), nil)
 		commands.On("CreateServiceMappingConfigMap", context, "kyma-system", "connectivity-proxy-service-mappings").Return(nil)

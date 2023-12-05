@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -43,6 +44,11 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		return errors.Errorf("Host cannot be empty")
 	}
 	context.Task.Configuration["global.kubeHost"] = strings.TrimPrefix(host, "https://api.")
+
+	if istioCRDsAreMissing(context) {
+		context.Logger.Warn("Istio CRDs are missing on the the cluster. Skipping reconciliation")
+		return nil
+	}
 
 	if context.Task.Type == model.OperationTypeDelete {
 		context.Logger.Debug("Requested cluster removal - removing component")
@@ -91,7 +97,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	context.Logger.Debug("Service Binding Secret check")
 
 	if bindingSecret == nil {
-		context.Logger.Warnf("Skipping reconcilion, %s", err)
+		context.Logger.Warnf("Skipping reconciliation, %s", err)
 		return nil
 	}
 
@@ -152,6 +158,28 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	}
 
 	return nil
+}
+
+func istioCRDsAreMissing(context *service.ActionContext) bool {
+	vsCRD, err := context.KubeClient.ListResource(context.Context, "customresourcedefinitions", metav1.ListOptions{
+		FieldSelector: "metadata.name=virtualservices.networking.istio.io",
+	})
+	if err != nil {
+		return true
+	}
+
+	gtwCRD, err := context.KubeClient.ListResource(context.Context, "customresourcedefinitions", metav1.ListOptions{
+		FieldSelector: "metadata.name=gateway.networking.istio.io",
+	})
+	if err != nil {
+		return true
+	}
+
+	// Istio virtualservices or gateways are not available on a cluster
+	if len(vsCRD.Items) == 0 || len(gtwCRD.Items) == 0 {
+		return true
+	}
+	return false
 }
 
 func getTunnelURL(actionCtx *service.ActionContext) string {
