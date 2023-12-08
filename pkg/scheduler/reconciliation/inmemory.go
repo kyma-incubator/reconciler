@@ -93,10 +93,6 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if len(state.Configuration.Components) == 0 {
-		return nil, newEmptyComponentsReconciliationError(state)
-	}
-
 	if existingRecon, ok := r.reconciliations[state.Cluster.RuntimeID]; ok {
 		return nil, &DuplicateClusterReconciliationError{
 			cluster:      existingRecon.RuntimeID,

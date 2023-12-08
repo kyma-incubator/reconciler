@@ -118,16 +118,7 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 		return err
 	}
 	err := db.Transaction(t.conn, dbOp, t.logger)
-	if reconciliation.IsEmptyComponentsReconciliationError(err) {
-		t.logger.Errorf("Cluster transition tried to add cluster '%s' to reconciliation queue but "+
-			"cluster has no components", newClusterState.Cluster.RuntimeID)
-		_, updateErr := t.inventory.UpdateStatus(newClusterState, model.ClusterStatusReconcileError)
-		if updateErr != nil {
-			t.logger.Errorf("Error updating cluster '%s': could not update cluster status to '%s': %s",
-				oldClusterState.Cluster.RuntimeID, model.ClusterStatusReconcileError, updateErr)
-			return errors.Wrap(updateErr, err.Error())
-		}
-	}
+
 	return err
 }
 

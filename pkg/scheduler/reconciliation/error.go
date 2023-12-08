@@ -32,18 +32,3 @@ func IsDuplicateClusterReconciliationError(err error) bool {
 type EmptyComponentsReconciliationError struct {
 	state *cluster.State
 }
-
-func (err *EmptyComponentsReconciliationError) Error() string {
-	return fmt.Sprintf("Error creating reconciliation for cluster with RuntimeID: %s and ConfigID: %d, component list is empty.", err.state.Cluster.RuntimeID, err.state.Configuration.Version)
-}
-
-func newEmptyComponentsReconciliationError(state *cluster.State) error {
-	return &EmptyComponentsReconciliationError{
-		state: state,
-	}
-}
-
-func IsEmptyComponentsReconciliationError(err error) bool {
-	_, ok := err.(*EmptyComponentsReconciliationError)
-	return ok
-}

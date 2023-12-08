@@ -98,10 +98,6 @@ func (r *PersistentReconciliationRepository) WithTx(tx *db.TxConnection) (Reposi
 }
 
 func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
-	if len(state.Configuration.Components) == 0 {
-		return nil, newEmptyComponentsReconciliationError(state)
-	}
-
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 		reconEntity := &model.ReconciliationEntity{
 			Lock:                state.Cluster.RuntimeID,
