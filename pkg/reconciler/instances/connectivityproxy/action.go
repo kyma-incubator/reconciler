@@ -169,7 +169,7 @@ func istioCRDsAreMissing(context *service.ActionContext) bool {
 	}
 
 	gtwCRD, err := context.KubeClient.ListResource(context.Context, "customresourcedefinitions", metav1.ListOptions{
-		FieldSelector: "metadata.name=gateway.networking.istio.io",
+		FieldSelector: "metadata.name=gateways.networking.istio.io",
 	})
 	if err != nil {
 		return true
