@@ -98,7 +98,7 @@ func TestAction(t *testing.T) {
 			FieldSelector: "metadata.name=virtualservices.networking.istio.io"}).Return(virtServicesList, nil)
 
 		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
-			FieldSelector: "metadata.name=gateway.networking.istio.io"}).Return(gatewaysList, nil)
+			FieldSelector: "metadata.name=gateways.networking.istio.io"}).Return(gatewaysList, nil)
 
 		loader.On("FindBindingOperator", context).Return(binding, nil)
 		loader.On("FindSecret", context, binding).Return(secret, nil)
@@ -128,7 +128,7 @@ func TestAction(t *testing.T) {
 			Return(&unstructured.UnstructuredList{}, nil)
 
 		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
-			FieldSelector: "metadata.name=gateway.networking.istio.io"}).
+			FieldSelector: "metadata.name=gateways.networking.istio.io"}).
 			Return(&unstructured.UnstructuredList{}, nil)
 
 		err := action.Run(context)
@@ -150,7 +150,7 @@ func TestAction(t *testing.T) {
 			FieldSelector: "metadata.name=virtualservices.networking.istio.io"}).Return(virtServicesList, nil)
 
 		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
-			FieldSelector: "metadata.name=gateway.networking.istio.io"}).Return(gatewaysList, nil)
+			FieldSelector: "metadata.name=gateways.networking.istio.io"}).Return(gatewaysList, nil)
 
 		loader.On("FindBindingOperator", context).Return(nil, nil)
 
@@ -173,7 +173,7 @@ func TestAction(t *testing.T) {
 			FieldSelector: "metadata.name=virtualservices.networking.istio.io"}).Return(virtServicesList, nil)
 
 		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
-			FieldSelector: "metadata.name=gateway.networking.istio.io"}).Return(gatewaysList, nil)
+			FieldSelector: "metadata.name=gateways.networking.istio.io"}).Return(gatewaysList, nil)
 
 		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return([]byte("testme"), nil)
 		commands.On("CreateServiceMappingConfigMap", context, "kyma-system", "connectivity-proxy-service-mappings").Return(nil)
@@ -202,7 +202,7 @@ func TestAction(t *testing.T) {
 			FieldSelector: "metadata.name=virtualservices.networking.istio.io"}).Return(virtServicesList, nil)
 
 		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
-			FieldSelector: "metadata.name=gateway.networking.istio.io"}).Return(gatewaysList, nil)
+			FieldSelector: "metadata.name=gateways.networking.istio.io"}).Return(gatewaysList, nil)
 
 		loader.On("FindBindingOperator", context).Return(nil, nil)
 
@@ -224,7 +224,7 @@ func TestAction(t *testing.T) {
 			FieldSelector: "metadata.name=virtualservices.networking.istio.io"}).Return(virtServicesList, nil)
 
 		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
-			FieldSelector: "metadata.name=gateway.networking.istio.io"}).Return(gatewaysList, nil)
+			FieldSelector: "metadata.name=gateways.networking.istio.io"}).Return(gatewaysList, nil)
 
 		loader.On("FindBindingOperator", context).Return(binding, nil)
 		loader.On("FindSecret", context, binding).Return(nil, errors.New("some error"))
@@ -256,7 +256,7 @@ func TestAction(t *testing.T) {
 			FieldSelector: "metadata.name=virtualservices.networking.istio.io"}).Return(virtServicesList, nil)
 
 		kubeClient.On("ListResource", context.Context, "customresourcedefinitions", metav1.ListOptions{
-			FieldSelector: "metadata.name=gateway.networking.istio.io"}).Return(gatewaysList, nil)
+			FieldSelector: "metadata.name=gateways.networking.istio.io"}).Return(gatewaysList, nil)
 
 		commands.On("CreateSecretMappingOperator", context, "kyma-system").Return([]byte("testme"), nil)
 		commands.On("CreateServiceMappingConfigMap", context, "kyma-system", "connectivity-proxy-service-mappings").Return(nil)
