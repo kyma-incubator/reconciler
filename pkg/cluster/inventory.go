@@ -10,12 +10,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	k8serr "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
-	k8serr "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Inventory interface {
@@ -76,17 +77,21 @@ func (i *DefaultInventory) WithTx(tx *db.TxConnection) (Inventory, error) {
 	return NewInventory(tx, i.Debug, i.metricsCollector)
 }
 
-func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error) {
+func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, maxRetries int,
+	errorStatus ...model.Status) (int, error) {
 	if len(errorStatus) == 0 {
 		return 0, errors.New("errorStatus slice is empty")
 	}
 
-	var maxStatusHistoryLength = maxRetries * 5 //cluster can have three interims state between errors, thus 5 is more than enough
+	var maxStatusHistoryLength = maxRetries * 5 // cluster can have three interims state between errors, thus 5 is more than enough
 	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
 	if err != nil {
 		return 0, errors.Wrap(err, fmt.Sprintf("failed to initialize query for runtime %s", runtimeID))
 	}
-	clusterStatuses, err := q.Select().Where(map[string]interface{}{"RuntimeID": runtimeID, "ConfigVersion": configVersion}).OrderBy(map[string]string{"ID": "desc"}).Limit(maxStatusHistoryLength).GetMany()
+	clusterStatuses, err := q.Select().Where(map[string]interface{}{
+		"RuntimeID":     runtimeID,
+		"ConfigVersion": configVersion,
+	}).OrderBy(map[string]string{"ID": "desc"}).Limit(maxStatusHistoryLength).GetMany()
 	if err != nil {
 		return 0, errors.Wrap(err, fmt.Sprintf("failed to count error for runtime %s", runtimeID))
 	}
@@ -115,9 +120,6 @@ func statusInSlice(status model.Status, statusList []model.Status) bool {
 }
 
 func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {
-	if len(cluster.KymaConfig.Components) == 0 {
-		return nil, fmt.Errorf("error creating cluster with RuntimeID: %s, component list is empty", cluster.RuntimeID)
-	}
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 		var iTx *DefaultInventory
 		tmpiTx, err := i.WithTx(tx)
@@ -170,27 +172,32 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 		return result, err
 	}
 
-	//Overwrite kubeconfig provided as K8s secret
+	// Overwrite kubeconfig provided as K8s secret
 	if i.clientSet != nil {
 		kubeconfigName := fmt.Sprintf("kubeconfig-%s", result.RuntimeID)
 		secret, err := i.clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), kubeconfigName, v1.GetOptions{})
 		if err != nil {
-			if k8serr.IsNotFound(err) { //accepted failure
-				i.Logger.Debugf("Cluster inventory cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s", kubeconfigName, result.RuntimeID)
+			if k8serr.IsNotFound(err) { // accepted failure
+				i.Logger.Debugf("Cluster inventory cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s",
+					kubeconfigName, result.RuntimeID)
 				return result, nil
-			} else if k8serr.IsForbidden(err) { //configuration failure
-				i.Logger.Warnf("Cluster inventory is not allowed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s", kubeconfigName, result.RuntimeID, err)
+			} else if k8serr.IsForbidden(err) { // configuration failure
+				i.Logger.Warnf("Cluster inventory is not allowed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
+					kubeconfigName, result.RuntimeID, err)
 				return result, nil
 			} else {
-				i.Logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s", kubeconfigName, result.RuntimeID, err)
+				i.Logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
+					kubeconfigName, result.RuntimeID, err)
 			}
 			return result, err
 		}
 
 		if kubeconfig, found := secret.Data["config"]; !found {
-			i.Logger.Errorf("Kubeconfig-secret '%s' for runtime '%s' does not include the data-key 'config'", kubeconfigName, result.RuntimeID)
+			i.Logger.Errorf("Kubeconfig-secret '%s' for runtime '%s' does not include the data-key 'config'",
+				kubeconfigName, result.RuntimeID)
 		} else {
-			i.Logger.Infof("Overwriting kubeconfig of cluster (runtimeID: %s) with value from kubeconfig-secret '%s'", result.RuntimeID, kubeconfigName)
+			i.Logger.Infof("Overwriting kubeconfig of cluster (runtimeID: %s) with value from kubeconfig-secret '%s'",
+				result.RuntimeID, kubeconfigName)
 			result.Kubeconfig = string(kubeconfig)
 		}
 	}
@@ -198,7 +205,8 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 	return result, err
 }
 
-func (i *DefaultInventory) getOrCreateCluster(contractVersion int64, cluster *keb.Cluster) (*model.ClusterEntity, error) {
+func (i *DefaultInventory) getOrCreateCluster(contractVersion int64, cluster *keb.Cluster) (*model.ClusterEntity,
+	error) {
 	newClusterEntity := &model.ClusterEntity{
 		RuntimeID:  cluster.RuntimeID,
 		Runtime:    &cluster.RuntimeInput,
@@ -207,19 +215,20 @@ func (i *DefaultInventory) getOrCreateCluster(contractVersion int64, cluster *ke
 		Contract:   contractVersion,
 	}
 
-	//check if a new version is required
+	// check if a new version is required
 	oldClusterEntity, err := i.latestCluster(cluster.RuntimeID)
 	if err == nil {
-		if oldClusterEntity.Equal(newClusterEntity) { //reuse existing cluster entity
-			i.Logger.Debugf("No differences found for cluster '%s': not creating new database entity", cluster.RuntimeID)
+		if oldClusterEntity.Equal(newClusterEntity) { // reuse existing cluster entity
+			i.Logger.Debugf("No differences found for cluster '%s': not creating new database entity",
+				cluster.RuntimeID)
 			return oldClusterEntity, nil
 		}
 	} else if !repository.IsNotFoundError(err) {
-		//unexpected error
+		// unexpected error
 		return nil, err
 	}
 
-	//create new version
+	// create new version
 	q, err := db.NewQuery(i.Conn, newClusterEntity, i.Logger)
 	if err != nil {
 		return nil, err
@@ -232,7 +241,8 @@ func (i *DefaultInventory) getOrCreateCluster(contractVersion int64, cluster *ke
 	return newClusterEntity, nil
 }
 
-func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *keb.Cluster, clusterEntity *model.ClusterEntity) (*model.ClusterConfigurationEntity, error) {
+func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *keb.Cluster,
+	clusterEntity *model.ClusterEntity) (*model.ClusterConfigurationEntity, error) {
 	newConfigEntity := &model.ClusterConfigurationEntity{
 		RuntimeID:      clusterEntity.RuntimeID,
 		ClusterVersion: clusterEntity.Version,
@@ -249,19 +259,20 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 		Contract:       contractVersion,
 	}
 
-	//check if a new version is required
+	// check if a new version is required
 	oldConfigEntity, err := i.latestConfig(clusterEntity.Version)
 	if err == nil {
-		if oldConfigEntity.Equal(newConfigEntity) { //reuse existing config entity
-			i.Logger.Debugf("No differences found for configuration of cluster '%s': not creating new database entity", cluster.RuntimeID)
+		if oldConfigEntity.Equal(newConfigEntity) { // reuse existing config entity
+			i.Logger.Debugf("No differences found for configuration of cluster '%s': not creating new database entity",
+				cluster.RuntimeID)
 			return oldConfigEntity, nil
 		}
 	} else if !repository.IsNotFoundError(err) {
-		//unexpected error
+		// unexpected error
 		return nil, err
 	}
 
-	//create new version
+	// create new version
 	q, err := db.NewQuery(i.Conn, newConfigEntity, i.Logger)
 	if err != nil {
 		return nil, err
@@ -274,7 +285,8 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 	return newConfigEntity, nil
 }
 
-func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfigurationEntity, status model.Status) (*model.ClusterStatusEntity, error) {
+func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfigurationEntity,
+	status model.Status) (*model.ClusterStatusEntity, error) {
 	newStatusEntity := &model.ClusterStatusEntity{
 		RuntimeID:      configEntity.RuntimeID,
 		ClusterVersion: configEntity.ClusterVersion,
@@ -282,19 +294,20 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 		Status:         status,
 	}
 
-	//check if a new version is required
+	// check if a new version is required
 	oldStatusEntity, err := i.latestStatus(configEntity.Version)
 	if err == nil {
-		if oldStatusEntity.Equal(newStatusEntity) { //reuse existing status entity
-			i.Logger.Debugf("No differences found for status of cluster '%s': not creating new database entity", configEntity.RuntimeID)
+		if oldStatusEntity.Equal(newStatusEntity) { // reuse existing status entity
+			i.Logger.Debugf("No differences found for status of cluster '%s': not creating new database entity",
+				configEntity.RuntimeID)
 			return oldStatusEntity, nil
 		}
 	} else if !repository.IsNotFoundError(err) {
-		//unexpected error
+		// unexpected error
 		return nil, err
 	}
 
-	//create new status
+	// create new status
 	q, err := db.NewQuery(i.Conn, newStatusEntity, i.Logger)
 	if err != nil {
 		return nil, err
@@ -331,9 +344,9 @@ func (i *DefaultInventory) MarkForDeletion(runtimeID string) (*State, error) {
 func (i *DefaultInventory) Delete(runtimeID string) error {
 	dbOps := func(tx *db.TxConnection) error {
 		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), runtimeID)
-		updateSQLTpl := "UPDATE %s SET %s=$1, %s=$2 WHERE %s=$3 OR %s=$4" //OR condition required for Postgres: new cluster-name is automatically cascaded to config-status table
+		updateSQLTpl := "UPDATE %s SET %s=$1, %s=$2 WHERE %s=$3 OR %s=$4" // OR condition required for Postgres: new cluster-name is automatically cascaded to config-status table
 
-		//update name of all cluster entities
+		// update name of all cluster entities
 		clusterEntity := &model.ClusterEntity{}
 		clusterColHandler, err := db.NewColumnHandler(clusterEntity, i.Conn, i.Logger)
 		if err != nil {
@@ -347,12 +360,13 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 		if err != nil {
 			return err
 		}
-		clusterUpdateSQL := fmt.Sprintf(updateSQLTpl, clusterEntity.Table(), clusterColName, clusterDelColName, clusterColName, clusterColName)
+		clusterUpdateSQL := fmt.Sprintf(updateSQLTpl, clusterEntity.Table(), clusterColName, clusterDelColName,
+			clusterColName, clusterColName)
 		if _, err := tx.Exec(clusterUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
 			return err
 		}
 
-		//update cluster-name of all referenced cluster-config entities
+		// update cluster-name of all referenced cluster-config entities
 		configEntity := &model.ClusterConfigurationEntity{}
 		configColHandler, err := db.NewColumnHandler(configEntity, i.Conn, i.Logger)
 		if err != nil {
@@ -366,12 +380,13 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 		if err != nil {
 			return err
 		}
-		configUpdateSQL := fmt.Sprintf(updateSQLTpl, configEntity.Table(), configClusterColName, configDelColName, configClusterColName, configClusterColName)
+		configUpdateSQL := fmt.Sprintf(updateSQLTpl, configEntity.Table(), configClusterColName, configDelColName,
+			configClusterColName, configClusterColName)
 		if _, err := tx.Exec(configUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
 			return err
 		}
 
-		//update cluster-name of all referenced cluster-status entities
+		// update cluster-name of all referenced cluster-status entities
 		statusEntity := &model.ClusterStatusEntity{}
 		statusColHandler, err := db.NewColumnHandler(statusEntity, i.Conn, i.Logger)
 		if err != nil {
@@ -385,12 +400,13 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 		if err != nil {
 			return err
 		}
-		statusUpdateSQL := fmt.Sprintf(updateSQLTpl, statusEntity.Table(), statusClusterColName, statusDelColName, statusClusterColName, statusClusterColName)
+		statusUpdateSQL := fmt.Sprintf(updateSQLTpl, statusEntity.Table(), statusClusterColName, statusDelColName,
+			statusClusterColName, statusClusterColName)
 		if _, err := tx.Exec(statusUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
 			return err
 		}
 
-		//done
+		// done
 		return nil
 	}
 	err := db.Transaction(i.Conn, dbOps, i.Logger)
@@ -557,13 +573,14 @@ func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 	statusFilter := &statusFilter{
 		allowedStatuses: []model.Status{
 			model.ClusterStatusReconcileError, model.ClusterStatusReconcileErrorRetryable,
-			model.ClusterStatusDeleting, model.ClusterStatusDeleteError, model.ClusterStatusDeleteErrorRetryable},
+			model.ClusterStatusDeleting, model.ClusterStatusDeleteError, model.ClusterStatusDeleteErrorRetryable,
+		},
 	}
 	return i.filterClusters(statusFilter)
 }
 
 func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State, error) {
-	//get DDL for sub-query
+	// get DDL for sub-query
 	clusterStatusEntity := &model.ClusterStatusEntity{}
 
 	statusColHandler, err := db.NewColumnHandler(clusterStatusEntity, i.Conn, i.Logger)
@@ -596,7 +613,8 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 		return nil, err
 	}
 
-	columnMap := map[string]string{ //just for convenience to avoid longer parameter lists
+	columnMap := map[string]string{
+		// just for convenience to avoid longer parameter lists
 		"ID":             idColName,
 		"RuntimeID":      runtimeIDColName,
 		"ClusterVersion": clusterVersionColName,
@@ -607,7 +625,7 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 	if err != nil {
 		return nil, err
 	}
-	if statusIdsSQL == "" { //no status entities found to reconcile
+	if statusIdsSQL == "" { // no status entities found to reconcile
 		return nil, nil
 	}
 
@@ -617,15 +635,16 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 	}
 
 	clusterStatuses, err := q.Select().
-		WhereIn("ID", statusIdsSQL, statusIdsArgs...). //query latest cluster states (= max(configVersion) within max(clusterVersion))
-		WhereRaw(statusFilterSQL).                     //filter these states also by provided criteria (by statuses, reconcile-interval etc.)
+		WhereIn("ID", statusIdsSQL,
+						statusIdsArgs...). // query latest cluster states (= max(configVersion) within max(clusterVersion))
+		WhereRaw(statusFilterSQL). // filter these states also by provided criteria (by statuses, reconcile-interval etc.)
 		Where(map[string]interface{}{"Deleted": false}).
 		GetMany()
 	if err != nil {
 		return nil, err
 	}
 
-	//retrieve clusters which require a reconciliation
+	// retrieve clusters which require a reconciliation
 	var result []*State
 	for _, clusterStatus := range clusterStatuses {
 		clStateEntity := clusterStatus.(*model.ClusterStatusEntity)
@@ -639,10 +658,11 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 	return result, nil
 }
 
-func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, clusterStatusEntity *model.ClusterStatusEntity) (string, []interface{}, error) {
+func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string,
+	clusterStatusEntity *model.ClusterStatusEntity) (string, []interface{}, error) {
 	var args []interface{}
 
-	//SQL to retrieve the latest statuses => max(config_version) within max(cluster_version):
+	// SQL to retrieve the latest statuses => max(config_version) within max(cluster_version):
 	/*
 		select cluster_version, max(config_version) from inventory_cluster_config_statuses where cluster_version in (
 			select max(cluster_version) from inventory_cluster_config_statuses group by runtime_id
@@ -651,7 +671,8 @@ func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, 
 	dataRows, err := i.Conn.Query(
 		fmt.Sprintf(
 			"SELECT %s, MAX(%s) FROM %s WHERE %s IN (SELECT MAX(%s) FROM %s WHERE %s=$1 GROUP BY %s) GROUP BY %s ",
-			columnMap["ClusterVersion"], columnMap["ConfigVersion"], clusterStatusEntity.Table(), columnMap["ClusterVersion"],
+			columnMap["ClusterVersion"], columnMap["ConfigVersion"], clusterStatusEntity.Table(),
+			columnMap["ClusterVersion"],
 			columnMap["ClusterVersion"], clusterStatusEntity.Table(), columnMap["Deleted"], columnMap["RuntimeID"],
 			columnMap["ClusterVersion"]),
 		false)
@@ -660,7 +681,7 @@ func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, 
 		return "", args, errors.Wrap(err, "failed to retrieve cluster-status-idents")
 	}
 
-	//SQL to retrieve entity-IDs for previously retrieved latest statuses:
+	// SQL to retrieve entity-IDs for previously retrieved latest statuses:
 	/*
 		select max(id) from inventory_cluster_config_statuses where
 			(cluster_version=x and config_version=y) or (cluster_version=a and config_version=v) or ...
@@ -686,16 +707,17 @@ func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, 
 	subQuery.WriteString(fmt.Sprintf(" GROUP BY %s", columnMap["ClusterVersion"]))
 
 	if len(args) == 0 {
-		return "", args, nil //no cluster status IDs found, return empty SQL stmt
+		return "", args, nil // no cluster status IDs found, return empty SQL stmt
 	}
 
 	return subQuery.String(), args, nil
 }
 
-func (i *DefaultInventory) buildStatusFilterSQL(filters []statusSQLFilter, statusColHandler *db.ColumnHandler) (string, error) {
+func (i *DefaultInventory) buildStatusFilterSQL(filters []statusSQLFilter, statusColHandler *db.ColumnHandler) (string,
+	error) {
 	var sqlFilterStmt bytes.Buffer
 	if len(filters) == 0 {
-		sqlFilterStmt.WriteString("1=1") //if no filters are provided, use 1=1 as placeholder to ensure valid SQL query
+		sqlFilterStmt.WriteString("1=1") // if no filters are provided, use 1=1 as placeholder to ensure valid SQL query
 	}
 	for _, filter := range filters {
 		sqlCond, err := filter.Filter(i.Conn.Type(), statusColHandler)
@@ -715,7 +737,7 @@ func (i *DefaultInventory) buildStatusFilterSQL(filters []statusSQLFilter, statu
 func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration) ([]*StatusChange, error) {
 	clusterStatusEntity := &model.ClusterStatusEntity{}
 
-	//build sub-query
+	// build sub-query
 	statusColHandler, err := db.NewColumnHandler(clusterStatusEntity, i.Conn, i.Logger)
 	if err != nil {
 		return nil, err
@@ -734,7 +756,7 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 		return nil, err
 	}
 
-	//query status entities (using sub-query in WHERE condition)
+	// query status entities (using sub-query in WHERE condition)
 	q, err := db.NewQuery(i.Conn, clusterStatusEntity, i.Logger)
 	if err != nil {
 		return nil, err
@@ -749,7 +771,7 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 	}
 
 	if len(clusterStatuses) == 0 {
-		//invalid state: there cannot be a cluster without any state
+		// invalid state: there cannot be a cluster without any state
 		return nil, i.NewNotFoundError(
 			fmt.Errorf("no status found for cluster '%s'", runtimeID),
 			clusterStatusEntity,
@@ -758,7 +780,7 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 			})
 	}
 
-	//build list of status changes
+	// build list of status changes
 	var statusChanges []*StatusChange
 	var createdPrevStatus time.Time
 	for _, clusterStatus := range clusterStatuses {
@@ -798,7 +820,8 @@ func (i *DefaultInventory) GetStatusIDsBlocksToDelete(statusCleanupBatchSize int
 	return repository.SplitSliceByBlockSize(statusIDs, statusCleanupBatchSize), nil
 }
 
-func (i *DefaultInventory) RemoveStatusesWithoutReconciliations(timeout time.Duration, statusCleanupBatchSize int) (int, error) {
+func (i *DefaultInventory) RemoveStatusesWithoutReconciliations(timeout time.Duration, statusCleanupBatchSize int) (int,
+	error) {
 	statusIDsBlocks, err := i.GetStatusIDsBlocksToDelete(statusCleanupBatchSize)
 	if err != nil {
 		return 0, err
@@ -829,7 +852,8 @@ func (i *DefaultInventory) RemoveStatusesWithoutReconciliations(timeout time.Dur
 		}
 		delCnt, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
 		if err != nil {
-			i.Logger.Error(fmt.Errorf("removal of config statuses without reconciliation failed during cluster entities cleanup, deleted count: %d %w", delCnt.(int), err))
+			i.Logger.Error(fmt.Errorf("removal of config statuses without reconciliation failed during cluster entities cleanup, deleted count: %d %w",
+				delCnt.(int), err))
 		}
 		totalDeleteCount += delCnt.(int)
 		time.Sleep(timeout)
@@ -856,7 +880,8 @@ func (i *DefaultInventory) RemoveDeletedClustersOlderThan(deadline time.Time) (i
 			return 0, err
 		}
 		runtimeIDSelectQuery.
-			WhereRaw(fmt.Sprintf("%s<$%d", createdColumn, runtimeIDSelectQuery.NextPlaceholderCount()), deadline.Format("2006-01-02 15:04:05.000"))
+			WhereRaw(fmt.Sprintf("%s<$%d", createdColumn, runtimeIDSelectQuery.NextPlaceholderCount()),
+				deadline.Format("2006-01-02 15:04:05.000"))
 
 		deleteQuery, err := db.NewQuery(tx, &model.ClusterEntity{}, i.Logger)
 		if err != nil {

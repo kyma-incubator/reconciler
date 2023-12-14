@@ -3,7 +3,6 @@ package reconciliation
 import (
 	"fmt"
 
-	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 )
 
@@ -27,8 +26,4 @@ func newDuplicateClusterReconciliationError(entity *model.ReconciliationEntity) 
 func IsDuplicateClusterReconciliationError(err error) bool {
 	_, ok := err.(*DuplicateClusterReconciliationError)
 	return ok
-}
-
-type EmptyComponentsReconciliationError struct {
-	state *cluster.State
 }
