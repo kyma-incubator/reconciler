@@ -45,8 +45,5 @@ func (c *Config) Validate() error {
 	if len(c.Scheduler.Reconcilers) == 0 {
 		return errors.New("reconciler mapping for mothership scheduler is not configured")
 	}
-	if len(c.Scheduler.PreComponents) == 0 {
-		return errors.New("pre-components for mothership scheduler are not configured")
-	}
 	return nil
 }
