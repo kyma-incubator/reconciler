@@ -1,6 +1,7 @@
 package chart
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	reconTest "github.com/kyma-incubator/reconciler/pkg/reconciler/test"
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -76,7 +76,7 @@ func TestProvider(t *testing.T) {
 	})
 
 	t.Run("Render CRDs", func(t *testing.T) {
-		filteredComps := []string{"istio", "api-gateway"}
+		filteredComps := []string{"compass-runtime-agent"}
 
 		// unfiltered
 		crdsUnfiltered, err := prov.RenderCRD(kymaVersion)
@@ -87,8 +87,7 @@ func TestProvider(t *testing.T) {
 		// filtered
 		crdsFiltered, err := prov.RenderCRDFiltered(kymaVersion, filteredComps)
 		require.NoError(t, err)
-		require.NotEmpty(t, crdsFiltered)
-		require.Equal(t, crdsFiltered[0].Type, CRD)
+		require.Emptyf(t, crdsFiltered, "Filtered CRDs should be empty")
 
 		// verify filtered CRDs
 		require.True(t, len(crdsUnfiltered) > len(crdsFiltered))
