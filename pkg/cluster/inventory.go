@@ -172,37 +172,41 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 		return result, err
 	}
 
+	i.overwriteKubeconfig(result)
+
+	return result, err
+}
+
+func (i *DefaultInventory) overwriteKubeconfig(cluster *model.ClusterEntity) {
 	// Overwrite kubeconfig provided as K8s secret
 	if i.clientSet != nil {
-		kubeconfigName := fmt.Sprintf("kubeconfig-%s", result.RuntimeID)
+		kubeconfigName := fmt.Sprintf("kubeconfig-%s", cluster.RuntimeID)
 		secret, err := i.clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), kubeconfigName, v1.GetOptions{})
 		if err != nil {
 			if k8serr.IsNotFound(err) { // accepted failure
 				i.Logger.Debugf("Cluster inventory cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s",
-					kubeconfigName, result.RuntimeID)
-				return result, nil
+					kubeconfigName, cluster.RuntimeID)
+				return
 			} else if k8serr.IsForbidden(err) { // configuration failure
 				i.Logger.Warnf("Cluster inventory is not allowed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
-					kubeconfigName, result.RuntimeID, err)
-				return result, nil
+					kubeconfigName, cluster.RuntimeID, err)
+				return
 			} else {
 				i.Logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
-					kubeconfigName, result.RuntimeID, err)
+					kubeconfigName, cluster.RuntimeID, err)
 			}
-			return result, err
+			return
 		}
 
 		if kubeconfig, found := secret.Data["config"]; !found {
 			i.Logger.Errorf("Kubeconfig-secret '%s' for runtime '%s' does not include the data-key 'config'",
-				kubeconfigName, result.RuntimeID)
+				kubeconfigName, cluster.RuntimeID)
 		} else {
 			i.Logger.Infof("Overwriting kubeconfig of cluster (runtimeID: %s) with value from kubeconfig-secret '%s'",
-				result.RuntimeID, kubeconfigName)
-			result.Kubeconfig = string(kubeconfig)
+				cluster.RuntimeID, kubeconfigName)
+			cluster.Kubeconfig = string(kubeconfig)
 		}
 	}
-
-	return result, err
 }
 
 func (i *DefaultInventory) getOrCreateCluster(contractVersion int64, cluster *keb.Cluster) (*model.ClusterEntity,
@@ -238,6 +242,7 @@ func (i *DefaultInventory) getOrCreateCluster(contractVersion int64, cluster *ke
 		return nil, err
 	}
 
+	i.overwriteKubeconfig(newClusterEntity)
 	return newClusterEntity, nil
 }
 
@@ -532,7 +537,11 @@ func (i *DefaultInventory) cluster(clusterVersion int64) (*model.ClusterEntity, 
 	if err != nil {
 		return nil, i.MapError(err, clusterEntity, whereCond)
 	}
-	return clusterEntity.(*model.ClusterEntity), nil
+
+	cluster := clusterEntity.(*model.ClusterEntity)
+	i.overwriteKubeconfig(cluster)
+
+	return cluster, nil
 }
 
 func (i *DefaultInventory) latestCluster(runtimeID string) (*model.ClusterEntity, error) {
@@ -553,7 +562,11 @@ func (i *DefaultInventory) latestCluster(runtimeID string) (*model.ClusterEntity
 	if err != nil {
 		return nil, i.MapError(err, clusterEntity, whereCond)
 	}
-	return clusterEntity.(*model.ClusterEntity), nil
+
+	cluster := clusterEntity.(*model.ClusterEntity)
+	i.overwriteKubeconfig(cluster)
+
+	return cluster, nil
 }
 
 func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {
