@@ -2,16 +2,13 @@ package cluster
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"time"
 
+	"github.com/kyma-incubator/reconciler/pkg/cache"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-
-	k8serr "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -180,32 +177,16 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 func (i *DefaultInventory) overwriteKubeconfig(cluster *model.ClusterEntity) {
 	// Overwrite kubeconfig provided as K8s secret
 	if i.clientSet != nil {
-		kubeconfigName := fmt.Sprintf("kubeconfig-%s", cluster.RuntimeID)
-		secret, err := i.clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), kubeconfigName, v1.GetOptions{})
-		if err != nil {
-			if k8serr.IsNotFound(err) { // accepted failure
-				i.Logger.Debugf("Cluster inventory cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s",
-					kubeconfigName, cluster.RuntimeID)
-				return
-			} else if k8serr.IsForbidden(err) { // configuration failure
-				i.Logger.Warnf("Cluster inventory is not allowed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
-					kubeconfigName, cluster.RuntimeID, err)
-				return
-			} else {
-				i.Logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
-					kubeconfigName, cluster.RuntimeID, err)
-			}
+		kubeconfig := cache.GetKubeConfigFromCache(i.Logger, i.clientSet, cluster.RuntimeID)
+		if kubeconfig == "" {
+			i.Logger.Warnf("Failed to retrieve kubeconfig from cache for cluster (runtimeID: %s), "+
+				"kubeconfig will not be overwritten", cluster.RuntimeID)
 			return
 		}
 
-		if kubeconfig, found := secret.Data["config"]; !found {
-			i.Logger.Errorf("Kubeconfig-secret '%s' for runtime '%s' does not include the data-key 'config'",
-				kubeconfigName, cluster.RuntimeID)
-		} else {
-			i.Logger.Infof("Overwriting kubeconfig of cluster (runtimeID: %s) with value from kubeconfig-secret '%s'",
-				cluster.RuntimeID, kubeconfigName)
-			cluster.Kubeconfig = string(kubeconfig)
-		}
+		i.Logger.Infof("Overwriting kubeconfig of cluster (runtimeID: %s) with value from kubeconfig-secret",
+			cluster.RuntimeID)
+		cluster.Kubeconfig = kubeconfig
 	}
 }
 
