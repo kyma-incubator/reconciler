@@ -7,15 +7,15 @@ replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.5
 replace github.com/docker/docker => github.com/docker/docker v23.0.7-0.20230730020554-801e90549aac+incompatible
 
 require (
-	k8s.io/api v0.29.0
-	k8s.io/apiextensions-apiserver v0.29.0
-	k8s.io/apimachinery v0.29.0
-	k8s.io/apiserver v0.29.0 // indirect
-	k8s.io/cli-runtime v0.29.0
-	k8s.io/client-go v0.29.0
-	k8s.io/component-base v0.29.0 // indirect
+	k8s.io/api v0.28.0
+	k8s.io/apiextensions-apiserver v0.28.0
+	k8s.io/apimachinery v0.28.0
+	k8s.io/apiserver v0.28.0 // indirect
+	k8s.io/cli-runtime v0.28.0
+	k8s.io/client-go v0.28.0
+	k8s.io/component-base v0.28.0 // indirect
 	k8s.io/kubectl v0.28.0
-	sigs.k8s.io/yaml v1.4.0
+	sigs.k8s.io/yaml v1.3.0
 )
 
 require (
@@ -109,7 +109,6 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20230705174524-200ffdc848b8 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/gosuri/uitable v0.0.4 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -147,7 +146,6 @@ require (
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/nwaples/rardecode v1.1.3 // indirect
 	github.com/onsi/ginkgo/v2 v2.14.0 // indirect
 	github.com/onsi/gomega v1.30.0 // indirect

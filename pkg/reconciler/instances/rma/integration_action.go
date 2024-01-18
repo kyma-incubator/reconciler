@@ -375,7 +375,8 @@ func generateVmalertGroup(context *service.ActionContext, id, num string) int {
 	}
 
 	csum := sha256.Sum256([]byte(id))
-	mrand.New(mrand.NewSource(int64(binary.LittleEndian.Uint64(csum[0:8]))))
+	//nolint:staticcheck //no security relevance, linter complains can be ignored
+	mrand.Seed(int64(binary.LittleEndian.Uint64(csum[0:8])))
 	group := mrand.Intn(groups)
 
 	return group
