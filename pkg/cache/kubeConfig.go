@@ -43,8 +43,8 @@ func SetKubeConfigInCache(key string, kubeconfig string) {
 
 // getkubeConfigFromSecret gets the kubeconfig from the secret.
 func getKubeConfigFromSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Clientset, runtimeID string) string {
-	kubeConfigName := fmt.Sprintf("kubeconfig-%s", runtimeID)
-	secret, err := getKubeConfigSecret(logger, clientSet, runtimeID, kubeConfigName)
+	secretResourceName := fmt.Sprintf("kubeconfig-%s", runtimeID)
+	secret, err := getKubeConfigSecret(logger, clientSet, runtimeID, secretResourceName)
 	if err != nil {
 		return ""
 	}
@@ -52,7 +52,7 @@ func getKubeConfigFromSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Cl
 	kubeconfig, found := secret.Data["config"]
 	if !found {
 		logger.Errorf("Kubeconfig-secret '%s' for runtime '%s' does not include the data-key 'config'",
-			kubeConfigName, runtimeID)
+			secretResourceName, runtimeID)
 	}
 
 	return string(kubeconfig)
@@ -60,25 +60,25 @@ func getKubeConfigFromSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Cl
 
 // getKubeConfigSecret gets the kubeconfig secret from the cluster.
 func getKubeConfigSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Clientset,
-	runtimeID, kubeConfigName string) (secret *corev1.Secret, err error) {
+	runtimeID, secretResourceName string) (secret *corev1.Secret, err error) {
 
-	secret, err = clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), kubeConfigName, metav1.GetOptions{})
+	secret, err = clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), secretResourceName, metav1.GetOptions{})
 	if err != nil {
 		if k8serr.IsNotFound(err) { // accepted failure
 			logger.Debugf("Cluster inventory cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
-				kubeConfigName, runtimeID, err)
+				secretResourceName, runtimeID, err)
 			return nil, err
 		} else if k8serr.IsForbidden(err) { // configuration failure
 			logger.Warnf("Cluster inventory is not allowed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
-				kubeConfigName, runtimeID, err)
+				secretResourceName, runtimeID, err)
 			return nil, err
 		}
 		logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
-			kubeConfigName, runtimeID, err)
+			secretResourceName, runtimeID, err)
 		return nil, err
 
 	}
 	logger.Infof("Successfully retrieved kubeconfig-secret '%s' for cluster with runtimeID %s",
-		kubeConfigName, runtimeID)
+		secretResourceName, runtimeID)
 	return secret, nil
 }
