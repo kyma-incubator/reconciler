@@ -27,7 +27,9 @@ func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Cli
 	if kubeConfigFromCache.Value() == "" || kubeConfigFromCache.IsExpired() {
 		kubeConfigCache.Delete(runtimeID)
 		kubeConfig := getKubeConfigFromSecret(logger, clientSet, runtimeID)
-		SetKubeConfigInCache(runtimeID, kubeConfig)
+		if kubeConfig != "" {
+			SetKubeConfigInCache(runtimeID, kubeConfig)
+		}
 		return kubeConfig
 	}
 
@@ -63,12 +65,12 @@ func getKubeConfigSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Client
 	secret, err = clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), kubeConfigName, metav1.GetOptions{})
 	if err != nil {
 		if k8serr.IsNotFound(err) { // accepted failure
-			logger.Debugf("Cluster inventory cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s",
-				kubeConfigName, runtimeID)
+			logger.Debugf("Cluster inventory cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
+				kubeConfigName, runtimeID, err)
 			return nil, err
 		} else if k8serr.IsForbidden(err) { // configuration failure
-			logger.Warnf("Cluster inventory is not allowed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
-				kubeConfigName, runtimeID)
+			logger.Warnf("Cluster inventory is not allowed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
+				kubeConfigName, runtimeID, err)
 			return nil, err
 		}
 		logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
