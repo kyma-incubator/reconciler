@@ -1,6 +1,10 @@
 package cluster
 
 import (
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
@@ -9,9 +13,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"strconv"
-	"testing"
-	"time"
 )
 
 const (
@@ -29,6 +30,15 @@ var clusterStatuses = []model.Status{
 	model.ClusterStatusDeleteError,
 	model.ClusterStatusDeleteErrorRetryable,
 	model.ClusterStatusDeleted}
+
+func TestGetTTLWithinRange(t *testing.T) {
+	minMinutes := int64(maxTTL.Minutes() / 2)
+	maxMinutes := int64(maxTTL.Minutes())
+	for i := 0; i < 100; i++ {
+		randDurationMin := int64(getTTLWithinRange().Minutes())
+		require.True(t, randDurationMin <= maxMinutes && randDurationMin >= minMinutes)
+	}
+}
 
 func (s *clusterTestSuite) TestInventory() {
 	t := s.T()

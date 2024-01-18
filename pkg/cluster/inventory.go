@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math/rand"
+	"sync"
 	"time"
 
+	"github.com/jellydator/ttlcache/v3"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -18,6 +21,11 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 )
+
+const maxTTL = 20 * time.Minute
+
+var mutex *sync.Mutex = new(sync.Mutex)
+var kcCache *ttlcache.Cache[string, string]
 
 type Inventory interface {
 	CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error)
@@ -56,6 +64,17 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 	if err != nil {
 		return nil, err
 	}
+
+	//ensure the cache get's initialized just once
+	mutex.Lock()
+	if kcCache == nil {
+		kcCache = ttlcache.New[string, string](
+			ttlcache.WithTTL[string, string](maxTTL),
+		)
+		repo.Logger.Info("Starting KC-cache entity with auto-deletion")
+		go kcCache.Start() // starts automatic expired item deletion
+	}
+	mutex.Unlock()
 
 	var clientSet *kubernetes.Clientset
 	config, err := rest.InClusterConfig()
@@ -178,19 +197,25 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 }
 
 func (i *DefaultInventory) overwriteKubeconfig(cluster *model.ClusterEntity) {
-	// Overwrite kubeconfig provided as K8s secret
+	kubeconfigName := fmt.Sprintf("kubeconfig-%s", cluster.RuntimeID)
+
+	//get kubeconfig from cache if possible
+	if kcCache.Has(kubeconfigName) {
+		i.Logger.Infof("Overwriting kubeconfig of cluster (runtimeID: %s) with value from Cache", cluster.RuntimeID)
+		cluster.Kubeconfig = kcCache.Get(kubeconfigName).Value()
+		return
+	}
+
 	if i.clientSet != nil {
-		kubeconfigName := fmt.Sprintf("kubeconfig-%s", cluster.RuntimeID)
+		//try to retrieve kubeconfig from K8s secret
 		secret, err := i.clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), kubeconfigName, v1.GetOptions{})
 		if err != nil {
 			if k8serr.IsNotFound(err) { // accepted failure
 				i.Logger.Debugf("Cluster inventory cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s",
 					kubeconfigName, cluster.RuntimeID)
-				return
 			} else if k8serr.IsForbidden(err) { // configuration failure
 				i.Logger.Warnf("Cluster inventory is not allowed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
 					kubeconfigName, cluster.RuntimeID, err)
-				return
 			} else {
 				i.Logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
 					kubeconfigName, cluster.RuntimeID, err)
@@ -205,8 +230,15 @@ func (i *DefaultInventory) overwriteKubeconfig(cluster *model.ClusterEntity) {
 			i.Logger.Infof("Overwriting kubeconfig of cluster (runtimeID: %s) with value from kubeconfig-secret '%s'",
 				cluster.RuntimeID, kubeconfigName)
 			cluster.Kubeconfig = string(kubeconfig)
+			kcCache.Set(kubeconfigName, string(kubeconfig), getTTLWithinRange())
 		}
 	}
+}
+
+func getTTLWithinRange() time.Duration {
+	var minMinutes = int64(maxTTL.Minutes() / 2) //we accept TTLS with 1/2 length of maxTTL
+	randMinutes := rand.Int63n(int64(maxTTL.Minutes())-minMinutes) + minMinutes
+	return time.Duration(randMinutes) * time.Minute
 }
 
 func (i *DefaultInventory) getOrCreateCluster(contractVersion int64, cluster *keb.Cluster) (*model.ClusterEntity,
