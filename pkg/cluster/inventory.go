@@ -70,6 +70,7 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 	if kcCache == nil {
 		kcCache = ttlcache.New[string, string](
 			ttlcache.WithTTL[string, string](maxTTL),
+			ttlcache.WithDisableTouchOnHit[string, string](),
 		)
 		repo.Logger.Info("Starting KC-cache entity with auto-deletion")
 		go kcCache.Start() // starts automatic expired item deletion
