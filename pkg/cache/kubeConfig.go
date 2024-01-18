@@ -14,13 +14,14 @@ import (
 )
 
 var kubeConfigCache = ttlcache.New[string, string](
-	ttlcache.WithTTL[string, string](30*time.Minute),
+	ttlcache.WithTTL[string, string](5*time.Minute),
 	ttlcache.WithDisableTouchOnHit[string, string](),
 )
 
 // GetKubeConfigFromCache returns the kubeconfig from the cache if it is not expired.
 // If it is expired, it will get the kubeconfig from the secret and set it in the cache.
 func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Clientset, runtimeID string) string {
+	kubeConfigCache.DeleteExpired()
 	kubeConfigFromCache := kubeConfigCache.Get(runtimeID)
 
 	if kubeConfigFromCache.Value() == "" || kubeConfigFromCache.IsExpired() {
@@ -35,7 +36,7 @@ func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Cli
 
 // SetKubeConfigInCache sets the kubeconfig in the cache.
 func SetKubeConfigInCache(key string, kubeconfig string) {
-	kubeConfigCache.Set(key, kubeconfig, 30*time.Minute)
+	kubeConfigCache.Set(key, kubeconfig, 5*time.Minute)
 }
 
 // getkubeConfigFromSecret gets the kubeconfig from the secret.
