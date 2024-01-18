@@ -22,7 +22,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 )
 
-const maxTTL = 20 * time.Minute
+const maxTTL = 12 * time.Minute
 
 var mutex *sync.Mutex = new(sync.Mutex)
 var kcCache *ttlcache.Cache[string, string]
