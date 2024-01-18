@@ -73,6 +73,8 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 		)
 		repo.Logger.Info("Starting KC-cache entity with auto-deletion")
 		go kcCache.Start() // starts automatic expired item deletion
+	} else {
+		repo.Logger.Info("KC cache already initialized")
 	}
 	mutex.Unlock()
 
