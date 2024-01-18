@@ -24,7 +24,7 @@ import (
 
 const maxTTL = 12 * time.Minute
 
-var mutex *sync.Mutex = new(sync.Mutex)
+var mutex = new(sync.Mutex)
 var kcCache *ttlcache.Cache[string, string]
 
 type Inventory interface {
