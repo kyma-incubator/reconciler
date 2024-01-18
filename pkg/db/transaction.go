@@ -17,7 +17,8 @@ const txMaxRetries = 5
 const txMaxJitter = 350
 const txMinJitter = 25
 
-func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{}, error), logger *zap.SugaredLogger) (interface{}, error) {
+func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{}, error),
+	logger *zap.SugaredLogger) (interface{}, error) {
 	var result interface{}
 	var err error
 	var allErr error
@@ -38,18 +39,18 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 				txCtxID, conn.ID(), retries, err)
 		}
 
-		//chain all retrieved TX errors for better debugging
+		// chain all retrieved TX errors for better debugging
 		if allErr == nil {
 			allErr = err
 		} else {
 			allErr = errors.Wrap(allErr, err.Error())
 		}
 
-		if isAlreadyCommitedOrRolledBackError(err) { //TX is already closed: give up
+		if isAlreadyCommitedOrRolledBackError(err) { // TX is already closed: give up
 			break
 		}
 
-		if isCollidingTxError(err) { //TX collided: retry
+		if isCollidingTxError(err) { // TX collided: retry
 			delay := randomJitter()
 			logger.Debugf("DB transaction (txCtxID:%s/connID:%s) collision occurred and transaction will be retried in %d msec",
 				txCtxID,
@@ -59,14 +60,14 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 			continue
 		}
 
-		break //anything else went wrong: give up
+		break // anything else went wrong: give up
 	}
 
 	return result, allErr
 }
 
 func randomJitter() time.Duration {
-	rand.Seed(time.Now().UnixNano())
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 	//nolint:gosec //no security relevance, linter complains can be ignored
 	jitter := rand.Int63n(txMaxJitter)
 	if jitter < txMinJitter {
@@ -75,7 +76,8 @@ func randomJitter() time.Duration {
 	return time.Duration(jitter) * time.Millisecond
 }
 
-func execTransaction(conn Connection, dbOps func(tx *TxConnection) (interface{}, error), logger *zap.SugaredLogger) (interface{}, error) {
+func execTransaction(conn Connection, dbOps func(tx *TxConnection) (interface{}, error),
+	logger *zap.SugaredLogger) (interface{}, error) {
 	log := func(msg string, args ...interface{}) {
 		if logger != nil {
 			logger.Infof(msg, args...)
@@ -119,7 +121,7 @@ type TxConnection struct {
 }
 
 func NewTxConnection(tx *sql.Tx, conn Connection, logger *zap.SugaredLogger) *TxConnection {
-	//setting counter to 1 since first begin is not called with counter increase
+	// setting counter to 1 since first begin is not called with counter increase
 	return &TxConnection{
 		id:      fmt.Sprintf("%s-%s", conn.ID(), uuid.NewString()),
 		tx:      tx,

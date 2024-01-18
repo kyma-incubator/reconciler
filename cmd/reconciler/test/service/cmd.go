@@ -42,10 +42,9 @@ func Run(o *Options, reconcilerName string) error {
 		return err
 	}
 
-	//start component reconciler
+	// start component reconciler
 	o.Logger().Infof("Starting component reconciler '%s'", reconcilerName)
 	ctx := cli.NewContext()
-
 	workerPool, tracker, err := startSvcCmd.StartComponentReconciler(ctx, o.Options, reconcilerName)
 	if err != nil {
 		return err
@@ -106,7 +105,7 @@ func readKubeconfigAsJSON() (string, error) {
 	yamlData := make(map[string]interface{})
 	fileExt := filepath.Ext(kubeConfigFile)
 	if fileExt == ".yaml" || fileExt == ".yml" {
-		//convert YAML to JSON to avoid issues with quotes in the CURL command
+		// convert YAML to JSON to avoid issues with quotes in the CURL command
 		if err := yaml.Unmarshal(kubeConfig, &yamlData); err != nil {
 			return "", errors.Wrap(err, fmt.Sprintf("failed to unmarshal YAML kubeconfig file '%s'", kubeConfigFile))
 		}
@@ -115,7 +114,7 @@ func readKubeconfigAsJSON() (string, error) {
 			return "", errors.Wrap(err, "failed to convert YAML kubeconfig into JSON string")
 		}
 	} else if fileExt != ".json" {
-		//just verify that kubeconfig-file indicates to be a JSON format
+		// just verify that kubeconfig-file indicates to be a JSON format
 		return "", fmt.Errorf("file extension '%s' is not supported as kubeconfig file", fileExt)
 	}
 
