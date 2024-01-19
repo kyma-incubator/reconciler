@@ -78,7 +78,8 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 	}
 	groupsNum := getConfigString(context.Task.Configuration, RmiVmalertGroupsNum)
 	if groupsNum == "" {
-		context.Logger.Debugf("missing configuration: %s, will use its default value: %d", RmiVmalertGroupsNum, DefaultVMAlertGroupsNum)
+		context.Logger.Debugf("missing configuration: %s, will use its default value: %d", RmiVmalertGroupsNum,
+			DefaultVMAlertGroupsNum)
 	}
 
 	releaseName := context.Task.Metadata.ShootName
@@ -123,12 +124,15 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 		skipHelmUpgrade := false
 		switch {
 		case upgradeVersion == "" || releaseVersion == "":
-			context.Logger.Warnf("cannot reliably determine monitoring integration chart versions (release/upgrade: %s/%s). Proceeding with rmi upgrade...", releaseVersion, upgradeVersion)
+			context.Logger.Warnf("cannot reliably determine monitoring integration chart versions (release/upgrade: %s/%s). Proceeding with rmi upgrade...",
+				releaseVersion, upgradeVersion)
 		case upgradeVersion == releaseVersion && helmRelease.Info.Status == release.StatusDeployed:
-			context.Logger.Debugf("%s-%s target version matches release version, skipping upgrade.", RmiChartName, releaseName)
+			context.Logger.Debugf("%s-%s target version matches release version, skipping upgrade.", RmiChartName,
+				releaseName)
 			skipHelmUpgrade = true
 		default:
-			context.Logger.Infof("%s-%s target version: %s release version/status: %s/%s, starting upgrade.", RmiChartName, releaseName, upgradeVersion, releaseVersion, helmRelease.Info.Status)
+			context.Logger.Infof("%s-%s target version: %s release version/status: %s/%s, starting upgrade.",
+				RmiChartName, releaseName, upgradeVersion, releaseVersion, helmRelease.Info.Status)
 		}
 
 		return a.upgrade(context, cfg, chartURL, releaseName, namespace, groupsNum, skipHelmUpgrade)
@@ -141,7 +145,8 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.Configuration, chartURL, releaseName, namespace, groupsNum string) error {
+func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.Configuration,
+	chartURL, releaseName, namespace, groupsNum string) error {
 	installAction := action.NewInstall(cfg)
 	installAction.ReleaseName = releaseName
 	installAction.Namespace = namespace
@@ -167,7 +172,8 @@ func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.
 	return nil
 }
 
-func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.Configuration, chartURL, releaseName, namespace, groupsNum string, skipHelmUpgrade bool) error {
+func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.Configuration,
+	chartURL, releaseName, namespace, groupsNum string, skipHelmUpgrade bool) error {
 	username := context.Task.Metadata.InstanceID
 	password, err := a.fetchPassword(context.Context, releaseName, namespace)
 	if err != nil {
@@ -252,7 +258,8 @@ func (a *IntegrationAction) fetchPassword(ctx context.Context, release, namespac
 	if err != nil {
 		return "", err
 	}
-	secret, err := client.CoreV1().Secrets(namespace).Get(ctx, fmt.Sprintf("vmuser-%s-%s", RmiChartName, release), metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(namespace).Get(ctx, fmt.Sprintf("vmuser-%s-%s", RmiChartName, release),
+		metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -294,7 +301,7 @@ func generateOverrideMap(context *service.ActionContext, username, password, gro
 	overrideMap := make(map[string]interface{})
 	metadata := context.Task.Metadata
 
-	//Get domain via kubeclient because it is not available in metadata
+	// Get domain via kubeclient because it is not available in metadata
 	host := context.KubeClient.GetHost()
 	domain := getDomain(host)
 
@@ -362,11 +369,13 @@ func findLatestRevision(releases []*release.Release) *release.Release {
 func generateVmalertGroup(context *service.ActionContext, id, num string) int {
 	groups, err := strconv.Atoi(num)
 	if err != nil {
-		context.Logger.Debugf("got error %s when converting string to int for configuration: %s, use its default value: %d", err, RmiVmalertGroupsNum, DefaultVMAlertGroupsNum)
+		context.Logger.Debugf("got error %s when converting string to int for configuration: %s, use its default value: %d",
+			err, RmiVmalertGroupsNum, DefaultVMAlertGroupsNum)
 		groups = DefaultVMAlertGroupsNum
 	}
 
 	csum := sha256.Sum256([]byte(id))
+	//nolint:staticcheck //no security relevance, linter complains can be ignored
 	mrand.Seed(int64(binary.LittleEndian.Uint64(csum[0:8])))
 	group := mrand.Intn(groups)
 
