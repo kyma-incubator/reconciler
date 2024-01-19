@@ -69,7 +69,7 @@ func getKubeConfigSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Client
 				secretResourceName, runtimeID, err)
 			return nil, err
 		}
-		logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
+		logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
 			secretResourceName, runtimeID, err)
 		return nil, err
 
