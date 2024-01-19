@@ -177,10 +177,10 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 func (i *DefaultInventory) overwriteKubeconfig(cluster *model.ClusterEntity) {
 	// Overwrite kubeconfig provided as K8s secret
 	if i.clientSet != nil {
-		kubeconfig := cache.GetKubeConfigFromCache(i.Logger, i.clientSet, cluster.RuntimeID)
-		if kubeconfig == "" {
+		kubeconfig, err := cache.GetKubeConfigFromCache(i.Logger, i.clientSet, cluster.RuntimeID)
+		if err != nil {
 			i.Logger.Warnf("Failed to retrieve kubeconfig from cache for cluster (runtimeID: %s), "+
-				"kubeconfig will not be overwritten", cluster.RuntimeID)
+				"kubeconfig will not be overwritten: %w", cluster.RuntimeID, err)
 			return
 		}
 

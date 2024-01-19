@@ -20,20 +20,21 @@ var kubeConfigCache = ttlcache.New[string, string](
 
 // GetKubeConfigFromCache returns the kubeconfig from the cache if it is not expired.
 // If it is expired, it will get the kubeconfig from the secret and set it in the cache.
-func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Clientset, runtimeID string) string {
+func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Clientset, runtimeID string) (string, error) {
 	kubeConfigCache.DeleteExpired()
 	kubeConfigFromCache := kubeConfigCache.Get(runtimeID)
 
 	if kubeConfigFromCache.Value() == "" || kubeConfigFromCache.IsExpired() {
 		kubeConfigCache.Delete(runtimeID)
-		kubeConfig := getKubeConfigFromSecret(logger, clientSet, runtimeID)
-		if kubeConfig != "" {
+		kubeConfig, err := getKubeConfigFromSecret(logger, clientSet, runtimeID)
+		if err == nil {
 			SetKubeConfigInCache(runtimeID, kubeConfig)
 		}
-		return kubeConfig
+		return kubeConfig, err
+
 	}
 
-	return kubeConfigFromCache.Value()
+	return kubeConfigFromCache.Value(), nil
 }
 
 // SetKubeConfigInCache sets the kubeconfig in the cache.
@@ -42,20 +43,20 @@ func SetKubeConfigInCache(key string, kubeconfig string) {
 }
 
 // getkubeConfigFromSecret gets the kubeconfig from the secret.
-func getKubeConfigFromSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Clientset, runtimeID string) string {
+func getKubeConfigFromSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Clientset, runtimeID string) (string, error) {
 	secretResourceName := fmt.Sprintf("kubeconfig-%s", runtimeID)
 	secret, err := getKubeConfigSecret(logger, clientSet, runtimeID, secretResourceName)
 	if err != nil {
-		return ""
+		return "", err
 	}
 
 	kubeconfig, found := secret.Data["config"]
 	if !found {
-		logger.Errorf("Kubeconfig-secret '%s' for runtime '%s' does not include the data-key 'config'",
+		return "", fmt.Errorf("Kubeconfig-secret '%s' for runtime '%s' does not include the data-key 'config'",
 			secretResourceName, runtimeID)
 	}
 
-	return string(kubeconfig)
+	return string(kubeconfig), nil
 }
 
 // getKubeConfigSecret gets the kubeconfig secret from the cluster.
