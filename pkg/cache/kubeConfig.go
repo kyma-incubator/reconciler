@@ -28,18 +28,13 @@ func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Cli
 		kubeConfigCache.Delete(runtimeID)
 		kubeConfig, err := getKubeConfigFromSecret(logger, clientSet, runtimeID)
 		if err == nil {
-			SetKubeConfigInCache(runtimeID, kubeConfig)
+			kubeConfigCache.Set(runtimeID, kubeConfig, 5*time.Minute)
 		}
 		return kubeConfig, err
 
 	}
 
 	return kubeConfigFromCache.Value(), nil
-}
-
-// SetKubeConfigInCache sets the kubeconfig in the cache.
-func SetKubeConfigInCache(key string, kubeconfig string) {
-	kubeConfigCache.Set(key, kubeconfig, 5*time.Minute)
 }
 
 // getkubeConfigFromSecret gets the kubeconfig from the secret.
