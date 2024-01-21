@@ -66,15 +66,15 @@ func getKubeConfigSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Client
 	secret, err = clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), secretResourceName, metav1.GetOptions{})
 	if err != nil {
 		if k8serr.IsNotFound(err) { // accepted failure
-			logger.Warnf("Kubeconfig cache cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
+			logger.Warnf("Kubeconfig cache cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
 				secretResourceName, runtimeID, err)
 			return nil, err
 		} else if k8serr.IsForbidden(err) { // configuration failure
-			logger.Errorf("Kubeconfig cache is not allowed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
+			logger.Errorf("Kubeconfig cache is not allowed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
 				secretResourceName, runtimeID, err)
 			return nil, err
 		}
-		logger.Errorf("Kubeconfig cache failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
+		logger.Errorf("Kubeconfig cache failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
 			secretResourceName, runtimeID, err)
 		return nil, err
 
