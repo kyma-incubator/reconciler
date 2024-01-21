@@ -22,19 +22,19 @@ var kubeConfigCache = ttlcache.New[string, string](
 // If it is expired, it will get the kubeconfig from the secret and set it in the cache.
 func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Clientset, runtimeID string) (string, error) {
 	kubeConfigCache.DeleteExpired()
-	kubeConfigFromCache := kubeConfigCache.Get(runtimeID)
 
-	if kubeConfigFromCache.Value() == "" || kubeConfigFromCache.IsExpired() {
-		kubeConfigCache.Delete(runtimeID)
-		kubeConfig, err := getKubeConfigFromSecret(logger, clientSet, runtimeID)
-		if err == nil {
-			kubeConfigCache.Set(runtimeID, kubeConfig, 5*time.Minute)
-		}
-		return kubeConfig, err
-
+	if kubeConfigCache.Has(runtimeID) {
+		logger.Infof("Kubeconfig cache found kubeconfig for cluster (runtimeID: %s) in cache", runtimeID)
+		return kubeConfigCache.Get(runtimeID).Value(), nil
 	}
 
-	return kubeConfigFromCache.Value(), nil
+	kubeConfig, err := getKubeConfigFromSecret(logger, clientSet, runtimeID)
+	if err == nil {
+		logger.Infof("Kubeconfig cache retrieved kubeconfig for cluster (runtimeID: %s) from secret: caching it now", runtimeID)
+		kubeConfigCache.Set(runtimeID, kubeConfig, 5*time.Minute)
+	}
+
+	return kubeConfig, err
 }
 
 // getkubeConfigFromSecret gets the kubeconfig from the secret.
@@ -47,7 +47,12 @@ func getKubeConfigFromSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Cl
 
 	kubeconfig, found := secret.Data["config"]
 	if !found {
-		return "", fmt.Errorf("Kubeconfig-secret '%s' for runtime '%s' does not include the data-key 'config'",
+		return "", fmt.Errorf("Kubeconfig cache found kubeconfig-secret '%s' for runtime '%s' which does not include the data-key 'config'",
+			secretResourceName, runtimeID)
+	}
+
+	if len(kubeconfig) == 0 {
+		return "", fmt.Errorf("Kubeconfig cache found kubeconfig-secret '%s' for runtime '%s' which includes an empty kubeconfig string",
 			secretResourceName, runtimeID)
 	}
 
@@ -61,20 +66,18 @@ func getKubeConfigSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Client
 	secret, err = clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), secretResourceName, metav1.GetOptions{})
 	if err != nil {
 		if k8serr.IsNotFound(err) { // accepted failure
-			logger.Debugf("Cluster inventory cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
+			logger.Warnf("Kubeconfig cache cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
 				secretResourceName, runtimeID, err)
 			return nil, err
 		} else if k8serr.IsForbidden(err) { // configuration failure
-			logger.Warnf("Cluster inventory is not allowed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
+			logger.Errorf("Kubeconfig cache is not allowed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
 				secretResourceName, runtimeID, err)
 			return nil, err
 		}
-		logger.Errorf("Cluster inventory failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
+		logger.Errorf("Kubeconfig cache failed to lookup kubeconfig-secret '%s' for cluster with runtimeID %s: %w",
 			secretResourceName, runtimeID, err)
 		return nil, err
 
 	}
-	logger.Infof("Successfully retrieved kubeconfig-secret '%s' for cluster with runtimeID %s",
-		secretResourceName, runtimeID)
 	return secret, nil
 }
