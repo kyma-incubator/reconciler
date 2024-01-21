@@ -180,7 +180,7 @@ func (i *DefaultInventory) overwriteKubeconfig(cluster *model.ClusterEntity) {
 		kubeconfig, err := cache.GetKubeConfigFromCache(i.Logger, i.clientSet, cluster.RuntimeID)
 		if err != nil {
 			i.Logger.Errorf("Failed to retrieve kubeconfig from cache for cluster (runtimeID: %s), "+
-				"kubeconfig will not be overwritten: %w", cluster.RuntimeID, err)
+				"kubeconfig will not be overwritten: %s", cluster.RuntimeID, err)
 			return
 		}
 
