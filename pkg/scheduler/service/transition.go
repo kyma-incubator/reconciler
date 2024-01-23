@@ -211,7 +211,7 @@ func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadl
 			}
 		}
 	} else {
-		t.logger.Errorf("%s Failed to retreive clusters which are in state '%s' to mark them as deleted: %s",
+		t.logger.Errorf("%s Failed to retrieve clusters which are in state '%s' to mark them as deleted: %s",
 			CleanerPrefix, model.ClusterStatusDeleteError, err)
 	}
 
