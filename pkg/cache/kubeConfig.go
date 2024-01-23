@@ -26,8 +26,6 @@ var (
 // If it is expired, it will get the kubeconfig from the secret and set it in the cache.
 func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Clientset, runtimeID string) (string,
 	error) {
-	os.Getenv("KUBECONFIG_CACHE_TTL")
-
 	kubeConfigCache.DeleteExpired()
 
 	if kubeConfigCache.Has(runtimeID) {
