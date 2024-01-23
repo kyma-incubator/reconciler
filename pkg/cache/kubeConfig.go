@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/jellydator/ttlcache/v3"
@@ -13,14 +14,18 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-var kubeConfigCache = ttlcache.New[string, string](
-	ttlcache.WithTTL[string, string](5*time.Minute),
-	ttlcache.WithDisableTouchOnHit[string, string](),
+var (
+	ttl             = getTTL()
+	kubeConfigCache = ttlcache.New[string, string](
+		ttlcache.WithTTL[string, string](ttl),
+		ttlcache.WithDisableTouchOnHit[string, string](),
+	)
 )
 
 // GetKubeConfigFromCache returns the kubeconfig from the cache if it is not expired.
 // If it is expired, it will get the kubeconfig from the secret and set it in the cache.
-func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Clientset, runtimeID string) (string, error) {
+func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Clientset, runtimeID string) (string,
+	error) {
 	kubeConfigCache.DeleteExpired()
 
 	if kubeConfigCache.Has(runtimeID) {
@@ -30,15 +35,17 @@ func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Cli
 
 	kubeConfig, err := getKubeConfigFromSecret(logger, clientSet, runtimeID)
 	if err == nil {
-		logger.Infof("Kubeconfig cache retrieved kubeconfig for cluster (runtimeID: %s) from secret: caching it now", runtimeID)
-		kubeConfigCache.Set(runtimeID, kubeConfig, 5*time.Minute)
+		logger.Infof("Kubeconfig cache retrieved kubeconfig for cluster (runtimeID: %s) from secret: caching it now",
+			runtimeID)
+		kubeConfigCache.Set(runtimeID, kubeConfig, ttl)
 	}
 
 	return kubeConfig, err
 }
 
 // getkubeConfigFromSecret gets the kubeconfig from the secret.
-func getKubeConfigFromSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Clientset, runtimeID string) (string, error) {
+func getKubeConfigFromSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Clientset, runtimeID string) (string,
+	error) {
 	secretResourceName := fmt.Sprintf("kubeconfig-%s", runtimeID)
 	secret, err := getKubeConfigSecret(logger, clientSet, runtimeID, secretResourceName)
 	if err != nil {
@@ -80,4 +87,16 @@ func getKubeConfigSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Client
 
 	}
 	return secret, nil
+}
+
+func getTTL() time.Duration {
+	ttl := os.Getenv("KUBECONFIG_CACHE_TTL")
+	if ttl == "" {
+		return 25 * time.Minute
+	}
+	ttlDuration, err := time.ParseDuration(ttl)
+	if err != nil {
+		return 25 * time.Minute
+	}
+	return ttlDuration
 }
