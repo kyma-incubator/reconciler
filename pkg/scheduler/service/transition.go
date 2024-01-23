@@ -185,7 +185,7 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 			return err
 		}
 
-		if status == model.ClusterStatusDeleted || status == model.ClusterStatusDeleteError {
+		if status == model.ClusterStatusDeleted {
 			return inventory.Delete(clusterState.Cluster.RuntimeID)
 		}
 		return nil
