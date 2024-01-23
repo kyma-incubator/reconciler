@@ -30,7 +30,12 @@ func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Cli
 
 	if kubeConfigCache.Has(runtimeID) {
 		logger.Infof("Kubeconfig cache found kubeconfig for cluster (runtimeID: %s) in cache", runtimeID)
-		return kubeConfigCache.Get(runtimeID).Value(), nil
+		cacheEntry := kubeConfigCache.Get(runtimeID)
+		if cacheEntry.Value() == "" {
+			return "", fmt.Errorf("Kubeconfig cache failed to find valid kubeconfig for cluster (runtimeID: %s), will retry the kubeconfig retrieval after %s",
+				runtimeID, cacheEntry.ExpiresAt())
+		}
+		return cacheEntry.Value(), nil
 	}
 
 	kubeConfig, err := getKubeConfigFromSecret(logger, clientSet, runtimeID)
@@ -43,7 +48,6 @@ func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Cli
 		logger.Infof("Kubeconfig cache failed to get kubeconfig for cluster (runtimeID: %s) from secret - will cache empty string: %s",
 			runtimeID, err)
 		kubeConfigCache.Set(runtimeID, "", ttl)
-		kubeConfig = ""
 	}
 
 	return kubeConfig, err
@@ -79,7 +83,7 @@ func getKubeConfigSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Client
 	secret, err = clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), secretResourceName, metav1.GetOptions{})
 	if err != nil {
 		if k8serr.IsNotFound(err) { // accepted failure
-			logger.Warnf("Kubeconfig cache cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
+			logger.Infof("Kubeconfig cache cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
 				secretResourceName, runtimeID, err)
 			return nil, err
 		} else if k8serr.IsForbidden(err) { // configuration failure
@@ -98,11 +102,11 @@ func getKubeConfigSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Client
 func getTTL() time.Duration {
 	ttl := os.Getenv("KUBECONFIG_CACHE_TTL")
 	if ttl == "" {
-		return 25 * time.Minute
+		return 30 * time.Minute
 	}
 	ttlDuration, err := time.ParseDuration(ttl)
 	if err != nil {
-		return 25 * time.Minute
+		return 30 * time.Minute
 	}
 	return ttlDuration
 }
