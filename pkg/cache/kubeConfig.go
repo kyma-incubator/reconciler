@@ -32,7 +32,7 @@ func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Cli
 		logger.Infof("Kubeconfig cache found kubeconfig for cluster (runtimeID: %s) in cache", runtimeID)
 		cacheEntry := kubeConfigCache.Get(runtimeID)
 		if cacheEntry.Value() == "" {
-			return "", fmt.Errorf("No valid kubeconfig found for cluster (runtimeID: %s), will retry the kubeconfig retrieval after %s",
+			return "", fmt.Errorf("Kubeconfig cache failed to find valid kubeconfig found for cluster (runtimeID: %s), will retry the kubeconfig retrieval after %s",
 				runtimeID, cacheEntry.ExpiresAt())
 		}
 		return cacheEntry.Value(), nil
