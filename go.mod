@@ -15,7 +15,7 @@ require (
 	k8s.io/client-go v0.29.1
 	k8s.io/component-base v0.29.1 // indirect
 	k8s.io/kubectl v0.29.1
-	sigs.k8s.io/yaml v1.3.0
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (
@@ -50,7 +50,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.12.3
-	sigs.k8s.io/kustomize/kyaml v0.14.3
+	sigs.k8s.io/kustomize/kyaml v0.16.0
 )
 
 require (
