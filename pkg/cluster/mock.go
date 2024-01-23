@@ -1,9 +1,10 @@
 package cluster
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"os"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/db"
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -15,6 +16,7 @@ const envVarKubeconfig = "KUBECONFIG"
 type MockInventory struct {
 	ClustersToReconcileResult             []*State
 	ClustersNotReadyResult                []*State
+	ClustersInStatusDeleteErrorResult     []*State
 	GetResult                             *State
 	GetLatestResult                       *State
 	GetAllResult                          []*State
@@ -98,4 +100,8 @@ func (i *MockInventory) RemoveStatusesWithoutReconciliations(timeout time.Durati
 
 func (i *MockInventory) RemoveDeletedClustersOlderThan(deadline time.Time) (int, error) {
 	return i.DeletedClustersOlderThanResult, nil
+}
+
+func (i *MockInventory) ClustersInStatusDeleteError() ([]*State, error) {
+	return i.ClustersInStatusDeleteErrorResult, nil
 }
