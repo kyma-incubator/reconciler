@@ -38,6 +38,10 @@ func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Cli
 		logger.Infof("Kubeconfig cache retrieved kubeconfig for cluster (runtimeID: %s) from secret: caching it now",
 			runtimeID)
 		kubeConfigCache.Set(runtimeID, kubeConfig, ttl)
+	} else {
+		logger.Infof("Kubeconfig cache failed to get kubeconfig for cluster (runtimeID: %s) from secret - will cache empty string: %s",
+			runtimeID, err)
+		kubeConfigCache.Set(runtimeID, "", ttl)
 	}
 
 	return kubeConfig, err
