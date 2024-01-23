@@ -102,11 +102,11 @@ func getKubeConfigSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Client
 func getTTL() time.Duration {
 	ttl := os.Getenv("KUBECONFIG_CACHE_TTL")
 	if ttl == "" {
-		return 25 * time.Minute
+		return 30 * time.Minute
 	}
 	ttlDuration, err := time.ParseDuration(ttl)
 	if err != nil {
-		return 25 * time.Minute
+		return 30 * time.Minute
 	}
 	return ttlDuration
 }
