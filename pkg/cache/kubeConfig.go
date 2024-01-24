@@ -29,7 +29,7 @@ func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Cli
 	kubeConfigCache.DeleteExpired()
 
 	if kubeConfigCache.Has(runtimeID) {
-		logger.Infof("Kubeconfig cache found kubeconfig for cluster (runtimeID: %s) in cache", runtimeID)
+		logger.Debugf("Kubeconfig cache found kubeconfig for cluster (runtimeID: %s) in cache", runtimeID)
 		cacheEntry := kubeConfigCache.Get(runtimeID)
 		if cacheEntry.Value() == "" {
 			return "", fmt.Errorf("Kubeconfig cache failed to find valid kubeconfig for cluster (runtimeID: %s), will retry the kubeconfig retrieval after %s",
@@ -40,12 +40,12 @@ func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Cli
 
 	kubeConfig, err := getKubeConfigFromSecret(logger, clientSet, runtimeID)
 	if err == nil {
-		logger.Infof("Kubeconfig cache retrieved kubeconfig for cluster (runtimeID: %s) from secret: caching it now",
+		logger.Debugf("Kubeconfig cache retrieved kubeconfig for cluster (runtimeID: %s) from secret: caching it now",
 			runtimeID)
 		kubeConfigCache.Set(runtimeID, kubeConfig, ttl)
 	} else {
 		// HACK: workaround to avoid that too many non-existing clusters lead to peformance issues
-		logger.Infof("Kubeconfig cache failed to get kubeconfig for cluster (runtimeID: %s) from secret - will cache empty string: %s",
+		logger.Debugf("Kubeconfig cache failed to get kubeconfig for cluster (runtimeID: %s) from secret - will cache empty string: %s",
 			runtimeID, err)
 		kubeConfigCache.Set(runtimeID, "", ttl)
 	}
@@ -83,7 +83,7 @@ func getKubeConfigSecret(logger *zap.SugaredLogger, clientSet *kubernetes.Client
 	secret, err = clientSet.CoreV1().Secrets("kcp-system").Get(context.TODO(), secretResourceName, metav1.GetOptions{})
 	if err != nil {
 		if k8serr.IsNotFound(err) { // accepted failure
-			logger.Infof("Kubeconfig cache cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
+			logger.Debugf("Kubeconfig cache cannot find a kubeconfig-secret '%s' for cluster with runtimeID %s: %s",
 				secretResourceName, runtimeID, err)
 			return nil, err
 		} else if k8serr.IsForbidden(err) { // configuration failure
