@@ -114,7 +114,7 @@ func getTTL() time.Duration {
 
 func getJitterTTL() time.Duration {
 	maxTTL := getTTL()
-	var minMinutes = int64(maxTTL.Minutes() / 4) //we accept TTLS with 1/4 length of maxTTL
-	randMinutes := rand.Int63n(int64(maxTTL.Minutes())-minMinutes) + minMinutes
-	return time.Duration(randMinutes) * time.Minute
+	buffer := int64(maxTTL.Minutes() / 3) //we accept TTLS with 1/3 length above maxTTL
+	jitter := rand.Int63n(buffer) + int64(maxTTL.Minutes())
+	return time.Duration(jitter) * time.Minute
 }
