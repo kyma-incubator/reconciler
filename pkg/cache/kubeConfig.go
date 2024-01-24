@@ -48,7 +48,7 @@ func GetKubeConfigFromCache(logger *zap.SugaredLogger, clientSet *kubernetes.Cli
 		// HACK: workaround to avoid that too many non-existing clusters lead to peformance issues
 		logger.Debugf("Kubeconfig cache failed to get kubeconfig for cluster (runtimeID: %s) from secret - will cache empty string: %s",
 			runtimeID, err)
-		kubeConfigCache.Set(runtimeID, "", getTTLWithinRange())
+		kubeConfigCache.Set(runtimeID, "", getJitterTTL())
 	}
 
 	return kubeConfig, err
@@ -112,7 +112,7 @@ func getTTL() time.Duration {
 	return ttlDuration
 }
 
-func getTTLWithinRange() time.Duration {
+func getJitterTTL() time.Duration {
 	maxTTL := getTTL()
 	var minMinutes = int64(maxTTL.Minutes() / 4) //we accept TTLS with 1/4 length of maxTTL
 	randMinutes := rand.Int63n(int64(maxTTL.Minutes())-minMinutes) + minMinutes
