@@ -3,6 +3,7 @@ package warden
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -24,8 +25,6 @@ type CleanupWardenAdmissionCertColumeMounts struct {
 
 func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionContext) error {
 	k8sClient := context.KubeClient
-
-	context.Logger.Infof("Action '%s' executed (passed version was '%s')", a.name, context.Task.Version)
 
 	deployment, err := getDeployment(context.Context, k8sClient, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace)
 	if err != nil {
@@ -52,7 +51,11 @@ func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionCont
 
 func isQualifiedForCleanup(deployment appsv1.Deployment) bool {
 	wardenAdmissionImage := deployment.Spec.Template.Spec.Containers[0].Image
-	return isVersionQualifiedForCleanup(wardenAdmissionImage)
+	split := strings.Split(wardenAdmissionImage, ":")
+	if len(split) != 2 {
+		return false
+	}
+	return isVersionQualifiedForCleanup(split[1])
 }
 
 // Only 0.10.0 or higher versions qualify for cleanup
@@ -65,7 +68,7 @@ func isVersionQualifiedForCleanup(versionToCheck string) bool {
 	return version.Compare(targetVersion) >= 0
 }
 
-func getDeployment(context context.Context, kubeClient kubernetes.Client, namespace, name string) (*appsv1.Deployment, error) {
+func getDeployment(context context.Context, kubeClient kubernetes.Client, name, namespace string) (*appsv1.Deployment, error) {
 	deployment, err := kubeClient.GetDeployment(context, name, namespace)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
