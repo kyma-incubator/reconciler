@@ -18,7 +18,6 @@ const wardenAdmissionDeploymentName = "warden-admission"
 const wardenAdmissionDeploymentNamespace = "kyma-system"
 const volumeName = "certs"
 
-// TODO: please implement component specific action logic here
 type CleanupWardenAdmissionCertColumeMounts struct {
 	name string
 }
@@ -26,32 +25,39 @@ type CleanupWardenAdmissionCertColumeMounts struct {
 func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionContext) error {
 	k8sClient := context.KubeClient
 
-	deployment, err := getDeployment(context.Context, k8sClient, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("while checking if %s deployment is present on cluster", wardenAdmissionDeploymentName))
-	}
-	if deployment != nil && isQualifiedForCleanup(*deployment) {
+	targetImage := getWardenAdmissionTargetImage(context.Task.Configuration)
 
-		volumeIndex := getVolumeIndexByName(deployment, volumeName)
-		volumeMountIndex := getVolumeMountIndexByName(deployment, volumeName)
+	if isQualifiedForCleanup(targetImage) {
 
-		if volumeIndex == -1 || volumeMountIndex == -1 {
-			return nil
-		}
-
-		data := fmt.Sprintf(`[{"op": "remove", "path": "/spec/template/spec/containers/0/volumeMounts/%d"},{"op": "remove", "path": "/spec/template/spec/volumes/%d"}]`, volumeMountIndex, volumeIndex)
-		err = k8sClient.PatchUsingStrategy(context.Context, "Deployment", wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace, []byte(data), types.StrategicMergePatchType)
+		deployment, err := getDeployment(context.Context, k8sClient, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("while patching  %s deployment", wardenAdmissionDeploymentName))
+			return errors.Wrap(err, fmt.Sprintf("while checking if %s deployment is present on cluster", wardenAdmissionDeploymentName))
+		}
+		if deployment != nil {
+
+			volumeIndex := getVolumeIndexByName(deployment, volumeName)
+			volumeMountIndex := getVolumeMountIndexByName(deployment, volumeName)
+
+			if volumeIndex == -1 || volumeMountIndex == -1 {
+				context.Logger.Debugf("no action needed for warden admission deployment before applying image %s", targetImage)
+				return nil
+			}
+
+			context.Logger.Debugf("warden admission deployment qualifies for Volume[%d] nad VolumeMount[%d] cleanup before applying image %s", volumeIndex, volumeMountIndex, targetImage)
+			data := fmt.Sprintf(`[{"op": "remove", "path": "/spec/template/spec/containers/0/volumeMounts/%d"},{"op": "remove", "path": "/spec/template/spec/volumes/%d"}]`, volumeMountIndex, volumeIndex)
+			err = k8sClient.PatchUsingStrategy(context.Context, "Deployment", wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace, []byte(data), types.StrategicMergePatchType)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("while patching  %s deployment", wardenAdmissionDeploymentName))
+			}
 		}
 	}
 
+	context.Logger.Debugf("no action required for new admission image [\"%s\"]", targetImage)
 	return nil
 }
 
-func isQualifiedForCleanup(deployment appsv1.Deployment) bool {
-	wardenAdmissionImage := deployment.Spec.Template.Spec.Containers[0].Image
-	split := strings.Split(wardenAdmissionImage, ":")
+func isQualifiedForCleanup(image string) bool {
+	split := strings.Split(image, ":")
 	if len(split) != 2 {
 		return false
 	}
@@ -95,4 +101,21 @@ func getVolumeMountIndexByName(deployment *appsv1.Deployment, volumeMountName st
 		}
 	}
 	return -1
+}
+
+func getWardenAdmissionTargetImage(config map[string]interface{}) string {
+	//global.admission.image
+	global, ok := config["global"].(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	admission, ok := global["admission"].(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	image, ok := admission["image"].(string)
+	if !ok {
+		return ""
+	}
+	return image
 }
