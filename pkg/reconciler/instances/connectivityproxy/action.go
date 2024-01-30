@@ -203,8 +203,10 @@ func istioCRDsAreMissing(context *service.ActionContext) bool {
 
 	// Istio virtualservices or gateways are not available on a cluster
 	if len(vsCRD.Items) == 0 || len(gtwCRD.Items) == 0 {
+		context.Logger.Info("Istio CRDs are missing on the the cluster")
 		return true
 	}
+	context.Logger.Info("Istio CRDs are present on the the cluster")
 	return false
 }
 
