@@ -58,10 +58,32 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("admission image override present but doesnt have the : delimiter", func(t *testing.T) {
+		ctx := context.Background()
+		mockClient := &mocks.Client{}
+		context := &service.ActionContext{
+			Context:    ctx,
+			Logger:     zap.NewNop().Sugar(),
+			KubeClient: mockClient,
+			Task: &reconciler.Task{
+				Configuration: map[string]interface{}{
+					"global": map[string]interface{}{
+						"admission": map[string]interface{}{
+							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission",
+						},
+					},
+				},
+			},
+		}
+		action := &CleanupWardenAdmissionCertColumeMounts{}
+		err := action.Run(context)
+		require.NoError(t, err)
+	})
+
 	t.Run("admission image override present - qualifies for cleanup but no warden admission deployment found", func(t *testing.T) {
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
-		mockClient.On("GetDeployment", ctx, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace).Return(nil, errors.NewNotFound(schema.GroupResource{}, ""))
+		mockClient.On("GetDeployment", ctx, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace).Return(nil, errors.NewNotFound(schema.GroupResource{}, "test error"))
 		context := &service.ActionContext{
 			Context:    ctx,
 			Logger:     zap.NewNop().Sugar(),
@@ -84,7 +106,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 	t.Run("error while reading warden admission deployment", func(t *testing.T) {
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
-		mockClient.On("GetDeployment", ctx, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace).Return(nil, errors.NewBadRequest(""))
+		mockClient.On("GetDeployment", ctx, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace).Return(nil, errors.NewBadRequest("test error"))
 		context := &service.ActionContext{
 			Context:    ctx,
 			Logger:     zap.NewNop().Sugar(),
@@ -104,10 +126,37 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("warden admission deployment found in v 0.10.0 but no volumemounts", func(t *testing.T) {
+	t.Run("warden admission deployment found in v 0.10.1 but no volumemounts", func(t *testing.T) {
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
 		mockClient.On("GetDeployment", ctx, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace).Return(fixedDeploymentWith(nil, nil), nil)
+		context := &service.ActionContext{
+			Context:    ctx,
+			Logger:     zap.NewNop().Sugar(),
+			KubeClient: mockClient,
+			Task: &reconciler.Task{
+				Configuration: map[string]interface{}{
+					"global": map[string]interface{}{
+						"admission": map[string]interface{}{
+							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
+						},
+					},
+				},
+			},
+		}
+		action := &CleanupWardenAdmissionCertColumeMounts{}
+		err := action.Run(context)
+		require.NoError(t, err)
+	})
+
+	t.Run("warden admission deployment found in v 0.10.1 but only volumes found w/o volumemounts", func(t *testing.T) {
+		vm := []corev1.Volume{
+			{Name: "foo"}, {Name: "certs"},
+		}
+
+		ctx := context.Background()
+		mockClient := &mocks.Client{}
+		mockClient.On("GetDeployment", ctx, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace).Return(fixedDeploymentWith(nil, vm), nil)
 		context := &service.ActionContext{
 			Context:    ctx,
 			Logger:     zap.NewNop().Sugar(),
@@ -148,7 +197,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 				Configuration: map[string]interface{}{
 					"global": map[string]interface{}{
 						"admission": map[string]interface{}{
-							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
+							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.2",
 						},
 					},
 				},
