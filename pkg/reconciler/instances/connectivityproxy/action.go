@@ -48,7 +48,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	context.Logger.Info("Checking Istio CRDs")
 
 	if istioCRDsAreMissing(context) {
-		context.Logger.Warn("Istio CRDs are missing on the the cluster. Skipping reconciliation")
+		context.Logger.Info("Istio CRDs are missing on the the cluster. Skipping reconciliation")
 		return nil
 	}
 
