@@ -767,6 +767,14 @@ func (g *kubeClientAdapter) Clientset() (kubernetes.Interface, error) {
 	return kubernetes.NewForConfig(g.restConfig)
 }
 
+func (g *kubeClientAdapter) ListGroupVersionResource(context context.Context, group string, version string, resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+	gvr, err := g.mapper.ResourceFor(schema.GroupVersionResource{Resource: resource, Group: group, Version: version})
+	if err != nil {
+		return nil, err
+	}
+	return g.dynamicClient.Resource(gvr).List(context, lo)
+}
+
 func (g *kubeClientAdapter) ListResource(context context.Context, resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error) {
 	gvr, err := g.mapper.ResourceFor(schema.GroupVersionResource{Resource: resource})
 	if err != nil {
