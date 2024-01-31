@@ -17,12 +17,16 @@ import (
 const wardenAdmissionDeploymentName = "warden-admission"
 const wardenAdmissionDeploymentNamespace = "kyma-system"
 const volumeName = "certs"
+const containerName = "admission"
 
 type CleanupWardenAdmissionCertColumeMounts struct {
 	name string
 }
 
 func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionContext) error {
+
+	context.Logger.Infof("Action '%s' executed (passed version was '%s')", a.name, context.Task.Version)
+
 	k8sClient := context.KubeClient
 
 	targetImage := getWardenAdmissionTargetImage(context.Task.Configuration)
@@ -35,16 +39,21 @@ func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionCont
 		}
 		if deployment != nil {
 
+			wardenContainerIndex := getContainerIndexByName(deployment, containerName)
+			if wardenContainerIndex == -1 {
+				context.Logger.Debugf("no action needed for warden admission deployment before applying image %s as no container with name %s was found", targetImage, containerName)
+				return nil
+			}
 			volumeIndex := getVolumeIndexByName(deployment, volumeName)
-			volumeMountIndex := getVolumeMountIndexByName(deployment, volumeName)
+			volumeMountIndex := getVolumeMountIndexByName(deployment, wardenContainerIndex, volumeName)
 
 			if volumeIndex == -1 || volumeMountIndex == -1 {
-				context.Logger.Debugf("no action needed for warden admission deployment before applying image %s", targetImage)
+				context.Logger.Debugf("no action needed for warden admission deployment before applying image %s as no certs volumes were found", targetImage)
 				return nil
 			}
 
 			context.Logger.Debugf("warden admission deployment qualifies for Volume[%d] nad VolumeMount[%d] cleanup before applying image %s", volumeIndex, volumeMountIndex, targetImage)
-			data := fmt.Sprintf(`[{"op": "remove", "path": "/spec/template/spec/containers/0/volumeMounts/%d"},{"op": "remove", "path": "/spec/template/spec/volumes/%d"}]`, volumeMountIndex, volumeIndex)
+			data := fmt.Sprintf(`[{"op": "remove", "path": "/spec/template/spec/containers/%d/volumeMounts/%d"},{"op": "remove", "path": "/spec/template/spec/volumes/%d"}]`, wardenContainerIndex, volumeMountIndex, volumeIndex)
 			err = k8sClient.PatchUsingStrategy(context.Context, "Deployment", wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace, []byte(data), types.StrategicMergePatchType)
 			if err != nil {
 				return errors.Wrap(err, fmt.Sprintf("while patching  %s deployment", wardenAdmissionDeploymentName))
@@ -94,9 +103,18 @@ func getVolumeIndexByName(deployment *appsv1.Deployment, volumeName string) int 
 	return -1
 }
 
-func getVolumeMountIndexByName(deployment *appsv1.Deployment, volumeMountName string) int {
-	for p, v := range deployment.Spec.Template.Spec.Containers[0].VolumeMounts {
+func getVolumeMountIndexByName(deployment *appsv1.Deployment, containerIndex int, volumeMountName string) int {
+	for p, v := range deployment.Spec.Template.Spec.Containers[containerIndex].VolumeMounts {
 		if v.Name == volumeMountName {
+			return p
+		}
+	}
+	return -1
+}
+
+func getContainerIndexByName(deployment *appsv1.Deployment, containerName string) int {
+	for p, c := range deployment.Spec.Template.Spec.Containers {
+		if c.Name == containerName {
 			return p
 		}
 	}
