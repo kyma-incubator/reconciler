@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const gitCloneTokenEnv = "GIT_CLONE_TOKENA" //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
+const gitCloneTokenEnv = "GIT_CLONE_TOKEN" //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
 
 type Cloner struct {
 	repo         *reconciler.Repository
