@@ -45,10 +45,14 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	}
 	context.Task.Configuration["global.kubeHost"] = strings.TrimPrefix(host, "https://api.")
 
+	context.Logger.Debug("Checking Istio CRDs")
+
 	if istioCRDsAreMissing(context) {
 		context.Logger.Warn("Istio CRDs are missing on the the cluster. Skipping reconciliation")
 		return nil
 	}
+
+	context.Logger.Debug("Checking Operation type")
 
 	if context.Task.Type == model.OperationTypeDelete {
 		context.Logger.Debug("Requested cluster removal - removing component")
@@ -118,10 +122,14 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		return fmt.Errorf("unable to create '%s' service mapping config map: %w", mappingOperatorSecretName, err)
 	}
 
+	context.Logger.Debug("Reading binding secret root key")
+
 	secretRootKey, _, err := unstructured.NestedString(binding.Object, "spec", "secretRootKey")
 	if err != nil {
 		return fmt.Errorf("unable to access binding specification")
 	}
+
+	context.Logger.Debug("Creating encoded secret root key")
 
 	encodedSrk, err := newEncodedSecretSvcKey(secretRootKey, bindingSecret)
 	if err != nil {
@@ -129,13 +137,19 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			bindingSecret.Namespace, bindingSecret.Name, err)
 	}
 
+	context.Logger.Debug("Creating connectivity-proxy-service-key secret")
+
 	if err := a.Commands.CreateSecretCpSvcKey(context, kymaSystem, cpSvcKeySecretName, encodedSrk); err != nil {
 		return fmt.Errorf("unable to create '%s' secret: %w", cpSvcKeySecretName, err)
 	}
 
+	context.Logger.Debug("Preparing overrides")
+
 	if err := prepareOverrides(context, bindingSecret, certificate, secretRootKey); err != nil {
 		return errors.Wrap(err, "Error - cannot prepare overrides")
 	}
+
+	context.Logger.Debug("Creating Connectivity CA client")
 
 	caClient, err := connectivityclient.NewConnectivityCAClient(context.Task.Configuration)
 	if err != nil {
@@ -149,6 +163,8 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	}
 
 	refresh := app != nil
+
+	context.Logger.Debug("Applying helm charts")
 
 	if err := a.Commands.Apply(context, refresh); err != nil {
 		return errors.Wrap(err, "Error during reconciliation")
