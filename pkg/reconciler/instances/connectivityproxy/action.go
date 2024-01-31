@@ -37,7 +37,7 @@ type CustomAction struct {
 var ErrReconciliationAborted = errors.New("reconciliation aborted")
 
 func (a *CustomAction) Run(context *service.ActionContext) error {
-	context.Logger.Debug("Staring invocation of " + context.Task.Component + " reconciliation")
+	context.Logger.Info("Staring invocation of " + context.Task.Component + " reconciliation")
 
 	host := context.KubeClient.GetHost()
 	if host == "" {
@@ -56,7 +56,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err
 		}
-		context.Logger.Info("Checking Operation type delete - exiting")
+		context.Logger.Info("Connectivity proxy successfully removed - exiting")
 		return nil
 	}
 
@@ -75,7 +75,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	// detect if connectivity-proxy reconciliation should not be skipped
 
 	if binding == nil && app == nil {
-		context.Logger.Info("Service binding is nil and no application is installed - exiting")
+		context.Logger.Info("Service binding is nil and connectivity proxy is not installed - exiting")
 		return nil
 	}
 
@@ -87,7 +87,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err
 		}
-		context.Logger.Info("Component successfully removed - exiting")
+		context.Logger.Info("Connectivity proxy successfully removed - exiting")
 		return nil
 	}
 
@@ -168,7 +168,7 @@ func istioCRDsAreMissing(context *service.ActionContext) bool {
 		FieldSelector: "metadata.name=virtualservices.networking.istio.io",
 	})
 	if err != nil {
-		context.Logger.Infof("Error while listing virtualservices: %s", err.Error())
+		context.Logger.Errorf("Error while listing virtualservices: %s", err.Error())
 		return true
 	}
 
@@ -176,7 +176,7 @@ func istioCRDsAreMissing(context *service.ActionContext) bool {
 		FieldSelector: "metadata.name=gateways.networking.istio.io",
 	})
 	if err != nil {
-		context.Logger.Infof("Error while listing gateways: %s", err.Error())
+		context.Logger.Errorf("Error while listing gateways: %s", err.Error())
 		return true
 	}
 
