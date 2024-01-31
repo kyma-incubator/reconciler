@@ -22,7 +22,7 @@ func (a *K8sLoader) FindBindingOperator(context *service.ActionContext) (*unstru
 	return search.findByCriteria(context.Context, []Locator{
 		{
 			group:          "services.cloud.sap.com",
-			version:        "v1alpha1",
+			version:        "v1",
 			resource:       "serviceinstance",
 			field:          "spec.serviceOfferingName",
 			client:         context.KubeClient,
@@ -31,7 +31,7 @@ func (a *K8sLoader) FindBindingOperator(context *service.ActionContext) (*unstru
 		},
 		{
 			group:        "services.cloud.sap.com",
-			version:      "v1alpha1",
+			version:      "v1",
 			resource:     "servicebinding",
 			field:        "spec.serviceInstanceName",
 			client:       context.KubeClient,

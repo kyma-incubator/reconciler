@@ -20,7 +20,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 	instances := []unstructured.Unstructured{
 		{
 			Object: map[string]interface{}{
-				"apiVersion": "servicecatalog.k8s.io/v1beta1",
+				"apiVersion": "services.cloud.sap.com/v1",
 				"kind":       "ServiceInstance",
 				"metadata": map[string]interface{}{
 					"name":           "connectivity-virtuous-prompt",
@@ -38,7 +38,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 	bindings := []unstructured.Unstructured{
 		{
 			Object: map[string]interface{}{
-				"apiVersion": "servicecatalog.k8s.io/v1beta1",
+				"apiVersion": "services.cloud.sap.com/v1",
 				"kind":       "ServiceBinding",
 				"metadata": map[string]interface{}{
 					"name":      "sweet-kepler",
@@ -54,7 +54,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 		},
 		{
 			Object: map[string]interface{}{
-				"apiVersion": "servicecatalog.k8s.io/v1beta1",
+				"apiVersion": "services.cloud.sap.com/v1",
 				"kind":       "ServiceBinding",
 				"metadata": map[string]interface{}{
 					"name":      "sweet-kepler-with-nil",
@@ -71,17 +71,17 @@ func TestServiceInstancesFilter(t *testing.T) {
 	}
 
 	client := &mockKubernetes.Client{}
-	client.On("ListResource", context.TODO(), "serviceinstance", v1.ListOptions{}).
+	client.On("ListGroupVersionResource", context.TODO(), "serviceinstance", v1.ListOptions{}).
 		Return(&unstructured.UnstructuredList{
 			Items: instances,
 		}, nil)
 
-	client.On("ListResource", context.TODO(), "servicebinding", v1.ListOptions{}).
+	client.On("ListGroupVersionResource", context.TODO(), "servicebinding", v1.ListOptions{}).
 		Return(&unstructured.UnstructuredList{
 			Items: bindings,
 		}, nil)
 
-	client.On("ListResource", context.TODO(), "test-no-match", v1.ListOptions{}).
+	client.On("ListGroupVersionResource", context.TODO(), "test-no-match", v1.ListOptions{}).
 		Return(nil, &meta.NoResourceMatchError{
 			PartialResource: schema.GroupVersionResource{
 				Group:    "serviceinstance",
@@ -90,10 +90,10 @@ func TestServiceInstancesFilter(t *testing.T) {
 			},
 		})
 
-	client.On("ListResource", context.TODO(), "test-invalid", v1.ListOptions{}).
+	client.On("ListGroupVersionResource", context.TODO(), "test-invalid", v1.ListOptions{}).
 		Return(nil, errors.New("Test error"))
 
-	client.On("ListResource", context.TODO(), mock2.AnythingOfType("string"), v1.ListOptions{}).
+	client.On("ListGroupVersionResource", context.TODO(), mock2.AnythingOfType("string"), v1.ListOptions{}).
 		Return(nil, k8serr.NewNotFound(schema.GroupResource{}, "test-message"))
 
 	t.Run("Should find service instance", func(t *testing.T) {
