@@ -100,7 +100,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	context.Logger.Debug("Service Binding Secret check")
 
 	if bindingSecret == nil {
-		context.Logger.Warnf("Skipping reconciliation, %s", err)
+		context.Logger.Infof("Binding Secret not found skipping reconciliation, %s", err)
 		return nil
 	}
 

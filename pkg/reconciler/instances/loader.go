@@ -15,4 +15,6 @@ import (
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/rma"
 	// import required to register component reconciler 'serverless' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/serverless"
+	//import required to register component reconciler 'warden' in reconciler registry
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/warden"
 )
