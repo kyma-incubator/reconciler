@@ -45,14 +45,14 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	}
 	context.Task.Configuration["global.kubeHost"] = strings.TrimPrefix(host, "https://api.")
 
-	context.Logger.Info("Checking Istio CRDs")
+	context.Logger.Debug("Checking Istio CRDs")
 
 	if istioCRDsAreMissing(context) {
-		context.Logger.Info("Istio CRDs are missing on the the cluster. Skipping reconciliation")
+		context.Logger.Warn("Istio CRDs are missing on the the cluster. Skipping reconciliation")
 		return nil
 	}
 
-	context.Logger.Info("Checking Operation type")
+	context.Logger.Debug("Checking Operation type")
 
 	if context.Task.Type == model.OperationTypeDelete {
 		context.Logger.Debug("Requested cluster removal - removing component")
@@ -60,17 +60,17 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err
 		}
-		context.Logger.Info("Checking Operation type delete - exiting")
+		context.Logger.Info("Connectivity proxy successfully removed - exiting")
 		return nil
 	}
 
-	context.Logger.Info("Checking StatefulSet")
+	context.Logger.Debug("Checking StatefulSet")
 	app, err := context.KubeClient.GetStatefulSet(context.Context, context.Task.Component, context.Task.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "Error while retrieving StatefulSet")
 	}
 
-	context.Logger.Info("Checking BTP Operator binding")
+	context.Logger.Debug("Checking BTP Operator binding")
 	binding, err := a.Loader.FindBindingOperator(context)
 	if err != nil {
 		return errors.Wrap(err, "Error while retrieving binding from BTP Operator")
@@ -79,7 +79,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	// detect if connectivity-proxy reconciliation should not be skipped
 
 	if binding == nil && app == nil {
-		context.Logger.Info("Service binding is nil and no application is installed - exiting")
+		context.Logger.Info("Service binding is nil and connectivity proxy is not installed - exiting")
 		return nil
 	}
 
@@ -91,25 +91,25 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err
 		}
-		context.Logger.Info("Component successfully removed - exiting")
+		context.Logger.Info("Connectivity proxy successfully removed - exiting")
 		return nil
 	}
 
 	// apply connectivity-proxy
 
-	context.Logger.Info("Reading ServiceBinding Secret")
+	context.Logger.Debug("Reading ServiceBinding Secret")
 	// TODO FindSecret does does not have reference to action and loader
 	bindingSecret, err := a.Loader.FindSecret(context, binding)
 
-	context.Logger.Info("Service Binding Secret check")
+	context.Logger.Debug("Service Binding Secret check")
 
 	if bindingSecret == nil {
-		context.Logger.Info("Binding Secret not found skipping reconciliation, %s", err)
+		context.Logger.Infof("Binding Secret not found skipping reconciliation, %s", err)
 		return nil
 	}
 
 	// build overrides for credential secret by reading them from btp-operator secret
-	context.Logger.Info("Populating configs")
+	context.Logger.Debug("Populating configs")
 	populateConfigs(context.Task.Configuration, bindingSecret)
 
 	certificate, err := a.Commands.CreateSecretMappingOperator(context, kymaSystem)
@@ -122,14 +122,14 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		return fmt.Errorf("unable to create '%s' service mapping config map: %w", mappingOperatorSecretName, err)
 	}
 
-	context.Logger.Info("Reading binding secret root key")
+	context.Logger.Debug("Reading binding secret root key")
 
 	secretRootKey, _, err := unstructured.NestedString(binding.Object, "spec", "secretRootKey")
 	if err != nil {
 		return fmt.Errorf("unable to access binding specification")
 	}
 
-	context.Logger.Info("Creating encoded secret root key")
+	context.Logger.Debug("Creating encoded secret root key")
 
 	encodedSrk, err := newEncodedSecretSvcKey(secretRootKey, bindingSecret)
 	if err != nil {
@@ -137,26 +137,26 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			bindingSecret.Namespace, bindingSecret.Name, err)
 	}
 
-	context.Logger.Info("Creating connectivity-proxy-service-key secret")
+	context.Logger.Debug("Creating connectivity-proxy-service-key secret")
 
 	if err := a.Commands.CreateSecretCpSvcKey(context, kymaSystem, cpSvcKeySecretName, encodedSrk); err != nil {
 		return fmt.Errorf("unable to create '%s' secret: %w", cpSvcKeySecretName, err)
 	}
 
-	context.Logger.Info("Preparing overrides")
+	context.Logger.Debug("Preparing overrides")
 
 	if err := prepareOverrides(context, bindingSecret, certificate, secretRootKey); err != nil {
 		return errors.Wrap(err, "Error - cannot prepare overrides")
 	}
 
-	context.Logger.Info("Creating Connectivity CA client")
+	context.Logger.Debug("Creating Connectivity CA client")
 
 	caClient, err := connectivityclient.NewConnectivityCAClient(context.Task.Configuration)
 	if err != nil {
 		return errors.Wrap(err, "Error - cannot create Connectivity CA client")
 	}
 
-	context.Logger.Info("Creating Istio CA cacert secret for Connectivity Proxy")
+	context.Logger.Debug("Creating Istio CA cacert secret for Connectivity Proxy")
 	err = a.Commands.CreateCARootSecret(context, caClient)
 	if err != nil {
 		return errors.Wrap(err, "error during creatiion of Istio CA cacert secret for Connectivity Proxy")
@@ -164,18 +164,13 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 
 	refresh := app != nil
 
-	if refresh {
-		context.Logger.Info("Apply helm charts for refresh")
-	} else {
-		context.Logger.Info("Apply helm charts for installation")
-	}
+	context.Logger.Debug("Applying helm charts")
 
 	if err := a.Commands.Apply(context, refresh); err != nil {
 		return errors.Wrap(err, "Error during reconciliation")
 	}
 
 	if refresh {
-		context.Logger.Info("Config refresh configuration fix")
 		if err := a.fixConfigurationIfNeeded(context); err != nil {
 			return errors.Wrap(err, "Error fixing configuration")
 		}
@@ -189,7 +184,7 @@ func istioCRDsAreMissing(context *service.ActionContext) bool {
 		FieldSelector: "metadata.name=virtualservices.networking.istio.io",
 	})
 	if err != nil {
-		context.Logger.Infof("Error while listing virtualservices: %s", err.Error())
+		context.Logger.Errorf("Error while listing virtualservices: %s", err.Error())
 		return true
 	}
 
@@ -197,16 +192,14 @@ func istioCRDsAreMissing(context *service.ActionContext) bool {
 		FieldSelector: "metadata.name=gateways.networking.istio.io",
 	})
 	if err != nil {
-		context.Logger.Infof("Error while listing gateways: %s", err.Error())
+		context.Logger.Errorf("Error while listing gateways: %s", err.Error())
 		return true
 	}
 
 	// Istio virtualservices or gateways are not available on a cluster
 	if len(vsCRD.Items) == 0 || len(gtwCRD.Items) == 0 {
-		context.Logger.Info("Istio CRDs are missing on the the cluster")
 		return true
 	}
-	context.Logger.Info("Istio CRDs are present on the the cluster")
 	return false
 }
 
@@ -227,7 +220,7 @@ func (a *CustomAction) fixConfigurationIfNeeded(context *service.ActionContext) 
 
 	labels := app.GetLabels()
 	if labels != nil && labels[versionKey] == versionToApplyConfigurationFix {
-		context.Logger.Info("Fixing Connectivity Proxy configuration...")
+		context.Logger.Warn("Fixing Connectivity Proxy configuration...")
 		return a.Commands.FixConfiguration(context, kymaSystem, configurationConfigMap, getTunnelURL(context))
 	}
 

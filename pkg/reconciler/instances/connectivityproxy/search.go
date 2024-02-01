@@ -21,6 +21,8 @@ type Search struct {
 type Locator struct {
 	searchNextBy   string
 	referenceValue interface{}
+	group          string
+	version        string
 	resource       string
 	field          string
 	client         kubernetes.Client
@@ -53,7 +55,7 @@ func (si *Search) findByCriteria(context context.Context, criteria []Locator) (*
 }
 
 func (c *Locator) find(context context.Context) (*unstructured.Unstructured, error) {
-	resources, err := c.client.ListResource(context, strings.ToLower(c.resource), metav1.ListOptions{})
+	resources, err := c.client.ListGroupVersionResource(context, strings.ToLower(c.group), strings.ToLower(c.version), strings.ToLower(c.resource), metav1.ListOptions{})
 
 	if err != nil && k8serr.IsNotFound(err) {
 		return nil, nil

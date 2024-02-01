@@ -20,7 +20,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 	instances := []unstructured.Unstructured{
 		{
 			Object: map[string]interface{}{
-				"apiVersion": "servicecatalog.k8s.io/v1beta1",
+				"apiVersion": "services.cloud.sap.com/v1",
 				"kind":       "ServiceInstance",
 				"metadata": map[string]interface{}{
 					"name":           "connectivity-virtuous-prompt",
@@ -38,7 +38,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 	bindings := []unstructured.Unstructured{
 		{
 			Object: map[string]interface{}{
-				"apiVersion": "servicecatalog.k8s.io/v1beta1",
+				"apiVersion": "services.cloud.sap.com/v1",
 				"kind":       "ServiceBinding",
 				"metadata": map[string]interface{}{
 					"name":      "sweet-kepler",
@@ -54,7 +54,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 		},
 		{
 			Object: map[string]interface{}{
-				"apiVersion": "servicecatalog.k8s.io/v1beta1",
+				"apiVersion": "services.cloud.sap.com/v1",
 				"kind":       "ServiceBinding",
 				"metadata": map[string]interface{}{
 					"name":      "sweet-kepler-with-nil",
@@ -71,17 +71,17 @@ func TestServiceInstancesFilter(t *testing.T) {
 	}
 
 	client := &mockKubernetes.Client{}
-	client.On("ListResource", context.TODO(), "serviceinstance", v1.ListOptions{}).
+	client.On("ListGroupVersionResource", context.TODO(), "services.cloud.sap.com", "v1", "serviceinstance", v1.ListOptions{}).
 		Return(&unstructured.UnstructuredList{
 			Items: instances,
 		}, nil)
 
-	client.On("ListResource", context.TODO(), "servicebinding", v1.ListOptions{}).
+	client.On("ListGroupVersionResource", context.TODO(), "services.cloud.sap.com", "v1", "servicebinding", v1.ListOptions{}).
 		Return(&unstructured.UnstructuredList{
 			Items: bindings,
 		}, nil)
 
-	client.On("ListResource", context.TODO(), "test-no-match", v1.ListOptions{}).
+	client.On("ListGroupVersionResource", context.TODO(), "services.cloud.sap.com", "v1", "test-no-match", v1.ListOptions{}).
 		Return(nil, &meta.NoResourceMatchError{
 			PartialResource: schema.GroupVersionResource{
 				Group:    "serviceinstance",
@@ -90,15 +90,17 @@ func TestServiceInstancesFilter(t *testing.T) {
 			},
 		})
 
-	client.On("ListResource", context.TODO(), "test-invalid", v1.ListOptions{}).
+	client.On("ListGroupVersionResource", context.TODO(), "services.cloud.sap.com", "v1", "test-invalid", v1.ListOptions{}).
 		Return(nil, errors.New("Test error"))
 
-	client.On("ListResource", context.TODO(), mock2.AnythingOfType("string"), v1.ListOptions{}).
+	client.On("ListGroupVersionResource", context.TODO(), "services.cloud.sap.com", "v1", mock2.AnythingOfType("string"), v1.ListOptions{}).
 		Return(nil, k8serr.NewNotFound(schema.GroupResource{}, "test-message"))
 
 	t.Run("Should find service instance", func(t *testing.T) {
 
 		locator := Locator{
+			group:          "services.cloud.sap.com",
+			version:        "v1",
 			resource:       "serviceinstance",
 			field:          "spec.clusterServiceClassExternalName",
 			client:         client,
@@ -112,6 +114,8 @@ func TestServiceInstancesFilter(t *testing.T) {
 
 	t.Run("Should find service instance by insensitive case", func(t *testing.T) {
 		locator := Locator{
+			group:          "services.cloud.sap.com",
+			version:        "v1",
 			resource:       "ServiceInstance",
 			field:          "spec.clusterServiceClassExternalName",
 			client:         client,
@@ -125,6 +129,8 @@ func TestServiceInstancesFilter(t *testing.T) {
 
 	t.Run("Should return nil when non existing instance", func(t *testing.T) {
 		locator := Locator{
+			group:          "services.cloud.sap.com",
+			version:        "v1",
 			resource:       "ServiceInstanceNonExisting",
 			field:          "spec.clusterServiceClassExternalName",
 			client:         client,
@@ -137,6 +143,8 @@ func TestServiceInstancesFilter(t *testing.T) {
 
 	t.Run("Should return nil when no match for resource was found", func(t *testing.T) {
 		locator := Locator{
+			group:          "services.cloud.sap.com",
+			version:        "v1",
 			resource:       "test-no-match",
 			field:          "spec.clusterServiceClassExternalName",
 			client:         client,
@@ -149,6 +157,8 @@ func TestServiceInstancesFilter(t *testing.T) {
 
 	t.Run("Should propagate error from invalid list resources call", func(t *testing.T) {
 		locator := Locator{
+			group:          "services.cloud.sap.com",
+			version:        "v1",
 			resource:       "test-invalid",
 			field:          "spec.clusterServiceClassExternalName",
 			client:         client,
@@ -161,6 +171,8 @@ func TestServiceInstancesFilter(t *testing.T) {
 
 	t.Run("Should return error on different value types", func(t *testing.T) {
 		locator := Locator{
+			group:          "services.cloud.sap.com",
+			version:        "v1",
 			resource:       "serviceinstance",
 			field:          "metadata.different-type",
 			client:         client,
@@ -174,6 +186,8 @@ func TestServiceInstancesFilter(t *testing.T) {
 
 	t.Run("Should compare nil values", func(t *testing.T) {
 		locator := Locator{
+			group:          "services.cloud.sap.com",
+			version:        "v1",
 			resource:       "serviceinstance",
 			field:          "metadata.nil-value",
 			client:         client,
@@ -198,6 +212,8 @@ func TestServiceInstancesFilter(t *testing.T) {
 
 		result, err := s.findByCriteria(context.TODO(), []Locator{
 			{
+				group:          "services.cloud.sap.com",
+				version:        "v1",
 				referenceValue: "connectivity",
 				resource:       "serviceinstance",
 				field:          "spec.clusterServiceClassExternalName",
@@ -214,6 +230,8 @@ func TestServiceInstancesFilter(t *testing.T) {
 
 		result, err := s.findByCriteria(context.TODO(), []Locator{
 			{
+				group:          "services.cloud.sap.com",
+				version:        "v1",
 				referenceValue: "non-existing-value",
 				resource:       "serviceinstance",
 				field:          "spec.clusterServiceClassExternalName",
@@ -226,6 +244,8 @@ func TestServiceInstancesFilter(t *testing.T) {
 
 		result, err = s.findByCriteria(context.TODO(), []Locator{
 			{
+				group:          "services.cloud.sap.com",
+				version:        "v1",
 				referenceValue: "non-existing-value",
 				resource:       "serviceinstance",
 				field:          "spec.clusterServiceClassExternalName",
@@ -249,6 +269,8 @@ func TestServiceInstancesFilter(t *testing.T) {
 
 		result, err := s.findByCriteria(context.TODO(), []Locator{
 			{
+				group:          "services.cloud.sap.com",
+				version:        "v1",
 				referenceValue: "connectivity",
 				resource:       "serviceinstance",
 				field:          "spec.clusterServiceClassExternalName",
@@ -256,6 +278,8 @@ func TestServiceInstancesFilter(t *testing.T) {
 				searchNextBy:   "metadata.name",
 			},
 			{
+				group:        "services.cloud.sap.com",
+				version:      "v1",
 				resource:     "servicebinding",
 				field:        "spec.instanceRef.name",
 				client:       client,
@@ -271,6 +295,8 @@ func TestServiceInstancesFilter(t *testing.T) {
 
 		result, err := s.findByCriteria(context.TODO(), []Locator{
 			{
+				group:          "services.cloud.sap.com",
+				version:        "v1",
 				referenceValue: nil,
 				resource:       "servicebinding",
 				field:          "spec.secretName",
