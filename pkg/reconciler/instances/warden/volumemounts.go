@@ -31,6 +31,8 @@ func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionCont
 
 	targetImage := getWardenAdmissionTargetImage(context.Task.Configuration)
 
+	context.Logger.Infof("target image %s", targetImage)
+
 	if isQualifiedForCleanup(targetImage) {
 
 		deployment, err := getDeployment(context.Context, k8sClient, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace)
@@ -41,18 +43,18 @@ func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionCont
 
 			wardenContainerIndex := getContainerIndexByName(deployment, containerName)
 			if wardenContainerIndex == -1 {
-				context.Logger.Debugf("no action needed for warden admission deployment before applying image %s as no container with name %s was found", targetImage, containerName)
+				context.Logger.Infof("no action needed for warden admission deployment before applying image %s as no container with name %s was found", targetImage, containerName)
 				return nil
 			}
 			volumeIndex := getVolumeIndexByName(deployment, volumeName)
 			volumeMountIndex := getVolumeMountIndexByName(deployment, wardenContainerIndex, volumeName)
 
 			if volumeIndex == -1 || volumeMountIndex == -1 {
-				context.Logger.Debugf("no action needed for warden admission deployment before applying image %s as no certs volumes were found", targetImage)
+				context.Logger.Infof("no action needed for warden admission deployment before applying image %s as no certs volumes were found", targetImage)
 				return nil
 			}
 
-			context.Logger.Debugf("warden admission deployment qualifies for Volume[%d] nad VolumeMount[%d] cleanup before applying image %s", volumeIndex, volumeMountIndex, targetImage)
+			context.Logger.Infof("warden admission deployment qualifies for Volume[%d] nad VolumeMount[%d] cleanup before applying image %s", volumeIndex, volumeMountIndex, targetImage)
 			data := fmt.Sprintf(`[{"op": "remove", "path": "/spec/template/spec/containers/%d/volumeMounts/%d"},{"op": "remove", "path": "/spec/template/spec/volumes/%d"}]`, wardenContainerIndex, volumeMountIndex, volumeIndex)
 			err = k8sClient.PatchUsingStrategy(context.Context, "Deployment", wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace, []byte(data), types.StrategicMergePatchType)
 			if err != nil {
@@ -61,7 +63,7 @@ func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionCont
 		}
 	}
 
-	context.Logger.Debugf("no action required for new admission image [\"%s\"]", targetImage)
+	context.Logger.Infof("no action required for new admission image [\"%s\"]", targetImage)
 	return nil
 }
 
