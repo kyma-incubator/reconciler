@@ -124,18 +124,13 @@ func getContainerIndexByName(deployment *appsv1.Deployment, containerName string
 }
 
 func getWardenAdmissionTargetImage(config map[string]interface{}) string {
-	//global.admission.image
-	global, ok := config["global"].(map[string]interface{})
+	val, ok := config["global.admission.image"]
 	if !ok {
 		return ""
 	}
-	admission, ok := global["admission"].(map[string]interface{})
+	stringValue, ok := val.(string)
 	if !ok {
 		return ""
 	}
-	image, ok := admission["image"].(string)
-	if !ok {
-		return ""
-	}
-	return image
+	return stringValue
 }

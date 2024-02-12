@@ -47,11 +47,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task: &reconciler.Task{
 				Version: "testversion",
 				Configuration: map[string]interface{}{
-					"global": map[string]interface{}{
-						"admission": map[string]interface{}{
-							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:dhd87djs",
-						},
-					},
+					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:kusedug",
 				},
 			},
 		}
@@ -70,11 +66,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task: &reconciler.Task{
 				Version: "testversion",
 				Configuration: map[string]interface{}{
-					"global": map[string]interface{}{
-						"admission": map[string]interface{}{
-							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission",
-						},
-					},
+					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission",
 				},
 			},
 		}
@@ -94,11 +86,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task: &reconciler.Task{
 				Version: "testversion",
 				Configuration: map[string]interface{}{
-					"global": map[string]interface{}{
-						"admission": map[string]interface{}{
-							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.0",
-						},
-					},
+					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.0",
 				},
 			},
 		}
@@ -118,11 +106,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task: &reconciler.Task{
 				Version: "testversion",
 				Configuration: map[string]interface{}{
-					"global": map[string]interface{}{
-						"admission": map[string]interface{}{
-							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
-						},
-					},
+					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
 				},
 			},
 		}
@@ -147,11 +131,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task: &reconciler.Task{
 				Version: "testversion",
 				Configuration: map[string]interface{}{
-					"global": map[string]interface{}{
-						"admission": map[string]interface{}{
-							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
-						},
-					},
+					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
 				},
 			},
 		}
@@ -171,11 +151,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task: &reconciler.Task{
 				Version: "testversion",
 				Configuration: map[string]interface{}{
-					"global": map[string]interface{}{
-						"admission": map[string]interface{}{
-							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
-						},
-					},
+					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
 				},
 			},
 		}
@@ -199,11 +175,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task: &reconciler.Task{
 				Version: "testversion",
 				Configuration: map[string]interface{}{
-					"global": map[string]interface{}{
-						"admission": map[string]interface{}{
-							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
-						},
-					},
+					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
 				},
 			},
 		}
@@ -232,11 +204,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task: &reconciler.Task{
 				Version: "testversion",
 				Configuration: map[string]interface{}{
-					"global": map[string]interface{}{
-						"admission": map[string]interface{}{
-							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.2",
-						},
-					},
+					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.2",
 				},
 			},
 		}
@@ -274,11 +242,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task: &reconciler.Task{
 				Version: "testversion",
 				Configuration: map[string]interface{}{
-					"global": map[string]interface{}{
-						"admission": map[string]interface{}{
-							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.2",
-						},
-					},
+					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.2",
 				},
 			},
 		}
@@ -307,11 +271,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task: &reconciler.Task{
 				Version: "testversion",
 				Configuration: map[string]interface{}{
-					"global": map[string]interface{}{
-						"admission": map[string]interface{}{
-							"image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
-						},
-					},
+					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.2",
 				},
 			},
 		}
