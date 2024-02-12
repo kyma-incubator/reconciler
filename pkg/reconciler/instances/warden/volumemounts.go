@@ -46,7 +46,7 @@ func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionCont
 
 	targetImage, err := getTargetWardenAdmissionImage(context)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("while unmarshalling global.admission.image value from warden chart"))
+		return errors.Wrap(err, "while unmarshalling global.admission.image value from warden chart")
 	}
 
 	context.Logger.Infof("target image %s", targetImage)
@@ -140,18 +140,6 @@ func getContainerIndexByName(deployment *appsv1.Deployment, containerName string
 	}
 	return -1
 }
-
-// func getWardenAdmissionTargetImage(config map[string]interface{}) string {
-// 	val, ok := config["global.admission.image"]
-// 	if !ok {
-// 		return ""
-// 	}
-// 	stringValue, ok := val.(string)
-// 	if !ok {
-// 		return ""
-// 	}
-// 	return stringValue
-// }
 
 func getTargetWardenAdmissionImage(context *service.ActionContext) (string, error) {
 	comp := chart.NewComponentBuilder(context.Task.Version, "warden").

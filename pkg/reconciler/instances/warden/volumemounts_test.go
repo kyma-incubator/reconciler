@@ -2,6 +2,7 @@ package warden
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -13,6 +14,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"sigs.k8s.io/kustomize/kyaml/yaml"
+
+	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,101 +25,114 @@ import (
 func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 
 	t.Run("no admission image override present", func(t *testing.T) {
+		chartProvider := &chartmocks.Provider{}
+		chartValuesYAML := getWardenValuesYAML(false, "")
+		chartValues, err := unmarshalTestValues(chartValuesYAML)
+		require.NoError(t, err)
+		chartProvider.On("Configuration", mock.Anything).Return(chartValues, nil)
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
 		context := &service.ActionContext{
-			Context:    ctx,
-			Logger:     zap.NewNop().Sugar(),
-			KubeClient: mockClient,
-			Task: &reconciler.Task{
-				Configuration: map[string]interface{}{},
-				Version:       "testversion",
-			},
+			Context:       ctx,
+			Logger:        zap.NewNop().Sugar(),
+			KubeClient:    mockClient,
+			Task:          &reconciler.Task{Version: "testversion"},
+			ChartProvider: chartProvider,
 		}
 		action := &CleanupWardenAdmissionCertColumeMounts{}
-		err := action.Run(context)
+		err = action.Run(context)
 		require.NoError(t, err)
 	})
 
 	t.Run("admission image override present - doesnt qualify for cleanup", func(t *testing.T) {
+		chartProvider := &chartmocks.Provider{}
+		chartValuesYAML := getWardenValuesYAML(true, "europe-docker.pkg.dev/kyma-project/prod/warden/admission:kusedug")
+		chartValues, err := unmarshalTestValues(chartValuesYAML)
+		require.NoError(t, err)
+		chartProvider.On("Configuration", mock.Anything).Return(chartValues, nil)
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
 		context := &service.ActionContext{
-			Context:    ctx,
-			Logger:     zap.NewNop().Sugar(),
-			KubeClient: mockClient,
-			Task: &reconciler.Task{
-				Version: "testversion",
-				Configuration: map[string]interface{}{
-					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:kusedug",
-				},
-			},
+			Context:       ctx,
+			Logger:        zap.NewNop().Sugar(),
+			KubeClient:    mockClient,
+			Task:          &reconciler.Task{Version: "testversion"},
+			ChartProvider: chartProvider,
 		}
 		action := &CleanupWardenAdmissionCertColumeMounts{}
-		err := action.Run(context)
+		err = action.Run(context)
 		require.NoError(t, err)
 	})
 
 	t.Run("admission image override present but doesnt have the : delimiter", func(t *testing.T) {
+
+		chartProvider := &chartmocks.Provider{}
+		chartValuesYAML := getWardenValuesYAML(true, "europe-docker.pkg.dev/kyma-project/prod/warden/admission")
+		chartValues, err := unmarshalTestValues(chartValuesYAML)
+		require.NoError(t, err)
+		chartProvider.On("Configuration", mock.Anything).Return(chartValues, nil)
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
 		context := &service.ActionContext{
-			Context:    ctx,
-			Logger:     zap.NewNop().Sugar(),
-			KubeClient: mockClient,
-			Task: &reconciler.Task{
-				Version: "testversion",
-				Configuration: map[string]interface{}{
-					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission",
-				},
-			},
+			Context:       ctx,
+			Logger:        zap.NewNop().Sugar(),
+			KubeClient:    mockClient,
+			Task:          &reconciler.Task{Version: "testversion"},
+			ChartProvider: chartProvider,
 		}
 		action := &CleanupWardenAdmissionCertColumeMounts{}
-		err := action.Run(context)
+		err = action.Run(context)
 		require.NoError(t, err)
 	})
 
 	t.Run("admission image override present - qualifies for cleanup but no warden admission deployment found", func(t *testing.T) {
+		chartProvider := &chartmocks.Provider{}
+		chartValuesYAML := getWardenValuesYAML(true, "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.0")
+		chartValues, err := unmarshalTestValues(chartValuesYAML)
+		require.NoError(t, err)
+		chartProvider.On("Configuration", mock.Anything).Return(chartValues, nil)
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
 		mockClient.On("GetDeployment", ctx, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace).Return(nil, errors.NewNotFound(schema.GroupResource{}, "test error"))
 		context := &service.ActionContext{
-			Context:    ctx,
-			Logger:     zap.NewNop().Sugar(),
-			KubeClient: mockClient,
-			Task: &reconciler.Task{
-				Version: "testversion",
-				Configuration: map[string]interface{}{
-					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.0",
-				},
-			},
+			Context:       ctx,
+			Logger:        zap.NewNop().Sugar(),
+			KubeClient:    mockClient,
+			Task:          &reconciler.Task{Version: "testversion"},
+			ChartProvider: chartProvider,
 		}
 		action := &CleanupWardenAdmissionCertColumeMounts{}
-		err := action.Run(context)
+		err = action.Run(context)
 		require.NoError(t, err)
 	})
 
 	t.Run("error while reading warden admission deployment", func(t *testing.T) {
+		chartProvider := &chartmocks.Provider{}
+		chartValuesYAML := getWardenValuesYAML(true, "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1")
+		chartValues, err := unmarshalTestValues(chartValuesYAML)
+		require.NoError(t, err)
+		chartProvider.On("Configuration", mock.Anything).Return(chartValues, nil)
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
 		mockClient.On("GetDeployment", ctx, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace).Return(nil, errors.NewBadRequest("test error"))
 		context := &service.ActionContext{
-			Context:    ctx,
-			Logger:     zap.NewNop().Sugar(),
-			KubeClient: mockClient,
-			Task: &reconciler.Task{
-				Version: "testversion",
-				Configuration: map[string]interface{}{
-					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
-				},
-			},
+			Context:       ctx,
+			Logger:        zap.NewNop().Sugar(),
+			KubeClient:    mockClient,
+			Task:          &reconciler.Task{Version: "testversion"},
+			ChartProvider: chartProvider,
 		}
 		action := &CleanupWardenAdmissionCertColumeMounts{}
-		err := action.Run(context)
+		err = action.Run(context)
 		require.Error(t, err)
 	})
 
 	t.Run("warden admission deployment found in v 0.10.1 but no admission container", func(t *testing.T) {
+		chartProvider := &chartmocks.Provider{}
+		chartValuesYAML := getWardenValuesYAML(true, "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1")
+		chartValues, err := unmarshalTestValues(chartValuesYAML)
+		require.NoError(t, err)
+		chartProvider.On("Configuration", mock.Anything).Return(chartValues, nil)
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
 		podSpec := corev1.PodSpec{
@@ -130,17 +147,20 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			KubeClient: mockClient,
 			Task: &reconciler.Task{
 				Version: "testversion",
-				Configuration: map[string]interface{}{
-					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
-				},
 			},
+			ChartProvider: chartProvider,
 		}
 		action := &CleanupWardenAdmissionCertColumeMounts{}
-		err := action.Run(context)
+		err = action.Run(context)
 		require.NoError(t, err)
 	})
 
 	t.Run("warden admission deployment found in v 0.10.1 but no volumemounts", func(t *testing.T) {
+		chartProvider := &chartmocks.Provider{}
+		chartValuesYAML := getWardenValuesYAML(true, "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1")
+		chartValues, err := unmarshalTestValues(chartValuesYAML)
+		require.NoError(t, err)
+		chartProvider.On("Configuration", mock.Anything).Return(chartValues, nil)
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
 		mockClient.On("GetDeployment", ctx, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace).Return(fixedDeploymentWith(nil, nil), nil)
@@ -150,13 +170,11 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			KubeClient: mockClient,
 			Task: &reconciler.Task{
 				Version: "testversion",
-				Configuration: map[string]interface{}{
-					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
-				},
 			},
+			ChartProvider: chartProvider,
 		}
 		action := &CleanupWardenAdmissionCertColumeMounts{}
-		err := action.Run(context)
+		err = action.Run(context)
 		require.NoError(t, err)
 	})
 
@@ -165,6 +183,11 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			{Name: "foo"}, {Name: volumeName},
 		}
 
+		chartProvider := &chartmocks.Provider{}
+		chartValuesYAML := getWardenValuesYAML(true, "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1")
+		chartValues, err := unmarshalTestValues(chartValuesYAML)
+		require.NoError(t, err)
+		chartProvider.On("Configuration", mock.Anything).Return(chartValues, nil)
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
 		mockClient.On("GetDeployment", ctx, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace).Return(fixedDeploymentWith(nil, vm), nil)
@@ -174,13 +197,11 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			KubeClient: mockClient,
 			Task: &reconciler.Task{
 				Version: "testversion",
-				Configuration: map[string]interface{}{
-					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.1",
-				},
 			},
+			ChartProvider: chartProvider,
 		}
 		action := &CleanupWardenAdmissionCertColumeMounts{}
-		err := action.Run(context)
+		err = action.Run(context)
 		require.NoError(t, err)
 	})
 
@@ -193,6 +214,12 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			{Name: "foo"}, {Name: volumeName},
 		}
 
+		chartProvider := &chartmocks.Provider{}
+		chartValuesYAML := getWardenValuesYAML(true, "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.2")
+		chartValues, err := unmarshalTestValues(chartValuesYAML)
+		require.NoError(t, err)
+		chartProvider.On("Configuration", mock.Anything).Return(chartValues, nil)
+
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
 		mockClient.On("GetDeployment", ctx, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace).Return(fixedDeploymentWith(vms, vm), nil)
@@ -203,13 +230,11 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			KubeClient: mockClient,
 			Task: &reconciler.Task{
 				Version: "testversion",
-				Configuration: map[string]interface{}{
-					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.2",
-				},
 			},
+			ChartProvider: chartProvider,
 		}
 		action := &CleanupWardenAdmissionCertColumeMounts{}
-		err := action.Run(context)
+		err = action.Run(context)
 		require.NoError(t, err)
 	})
 
@@ -231,6 +256,11 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Volumes:    vm,
 		}
 
+		chartProvider := &chartmocks.Provider{}
+		chartValuesYAML := getWardenValuesYAML(true, "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.2")
+		chartValues, err := unmarshalTestValues(chartValuesYAML)
+		require.NoError(t, err)
+		chartProvider.On("Configuration", mock.Anything).Return(chartValues, nil)
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
 		mockClient.On("GetDeployment", ctx, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace).Return(fixedDeploymentWithPodSpec(podSpec), nil)
@@ -241,13 +271,11 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			KubeClient: mockClient,
 			Task: &reconciler.Task{
 				Version: "testversion",
-				Configuration: map[string]interface{}{
-					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.2",
-				},
 			},
+			ChartProvider: chartProvider,
 		}
 		action := &CleanupWardenAdmissionCertColumeMounts{}
-		err := action.Run(context)
+		err = action.Run(context)
 		require.NoError(t, err)
 	})
 
@@ -260,6 +288,11 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			{Name: "foo"}, {Name: volumeName},
 		}
 
+		chartProvider := &chartmocks.Provider{}
+		chartValuesYAML := getWardenValuesYAML(true, "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.2")
+		chartValues, err := unmarshalTestValues(chartValuesYAML)
+		require.NoError(t, err)
+		chartProvider.On("Configuration", mock.Anything).Return(chartValues, nil)
 		ctx := context.Background()
 		mockClient := &mocks.Client{}
 		mockClient.On("GetDeployment", ctx, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace).Return(fixedDeploymentWith(vms, vm), nil)
@@ -270,13 +303,11 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			KubeClient: mockClient,
 			Task: &reconciler.Task{
 				Version: "testversion",
-				Configuration: map[string]interface{}{
-					"global.admission.image": "europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.10.2",
-				},
 			},
+			ChartProvider: chartProvider,
 		}
 		action := &CleanupWardenAdmissionCertColumeMounts{}
-		err := action.Run(context)
+		err = action.Run(context)
 		require.Error(t, err)
 	})
 }
@@ -315,4 +346,28 @@ func fixedDeploymentWithPodSpec(podSpec corev1.PodSpec) *appsv1.Deployment {
 			},
 		},
 	}
+}
+
+func getWardenValuesYAML(withImage bool, image string) string {
+	if !withImage {
+		return `
+    global:
+      admission:`
+	}
+
+	return fmt.Sprintf(`
+    global:
+      admission:
+        image: %s`,
+		image,
+	)
+}
+
+func unmarshalTestValues(yamlValues string) (map[string]interface{}, error) {
+	var values map[string]interface{}
+	err := yaml.Unmarshal([]byte(yamlValues), &values)
+	if err != nil {
+		return nil, err
+	}
+	return values, nil
 }
