@@ -12,12 +12,27 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"gopkg.in/yaml.v3"
 )
 
 const wardenAdmissionDeploymentName = "warden-admission"
 const wardenAdmissionDeploymentNamespace = "kyma-system"
 const volumeName = "certs"
 const containerName = "admission"
+
+type Config struct {
+	Global Global
+}
+
+// Global configuration of JetStream feature.
+type Global struct {
+	Admission Admission `yaml:"admission"`
+}
+type Admission struct {
+	Image string `yaml:"image"`
+}
 
 type CleanupWardenAdmissionCertColumeMounts struct {
 	name string
@@ -29,12 +44,10 @@ func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionCont
 
 	k8sClient := context.KubeClient
 
-	context.Logger.Infof("Printing configuration")
-	for key, value := range context.Task.Configuration {
-		context.Logger.Infof("%s:%s", key, value)
+	targetImage, err := getTargetWardenAdmissionImage(context)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("while unmarshalling global.admission.image value from warden chart"))
 	}
-
-	targetImage := getWardenAdmissionTargetImage(context.Task.Configuration)
 
 	context.Logger.Infof("target image %s", targetImage)
 
@@ -128,14 +141,38 @@ func getContainerIndexByName(deployment *appsv1.Deployment, containerName string
 	return -1
 }
 
-func getWardenAdmissionTargetImage(config map[string]interface{}) string {
-	val, ok := config["global.admission.image"]
-	if !ok {
-		return ""
+// func getWardenAdmissionTargetImage(config map[string]interface{}) string {
+// 	val, ok := config["global.admission.image"]
+// 	if !ok {
+// 		return ""
+// 	}
+// 	stringValue, ok := val.(string)
+// 	if !ok {
+// 		return ""
+// 	}
+// 	return stringValue
+// }
+
+func getTargetWardenAdmissionImage(context *service.ActionContext) (string, error) {
+	comp := chart.NewComponentBuilder(context.Task.Version, "warden").
+		WithConfiguration(context.Task.Configuration).
+		WithNamespace("kyma-system").
+		Build()
+
+	chartValues, err := context.ChartProvider.Configuration(comp)
+	if err != nil {
+		return "", err
 	}
-	stringValue, ok := val.(string)
-	if !ok {
-		return ""
+
+	data, err := yaml.Marshal(chartValues)
+	if err != nil {
+		return "", err
 	}
-	return stringValue
+
+	values := &Config{}
+	if err := yaml.Unmarshal(data, &values); err != nil {
+		return "", err
+	}
+
+	return fmt.Sprint(values.Global.Admission.Image), nil
 }
