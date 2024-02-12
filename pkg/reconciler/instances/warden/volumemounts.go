@@ -29,6 +29,11 @@ func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionCont
 
 	k8sClient := context.KubeClient
 
+	context.Logger.Infof("Printing configuration")
+	for key, value := range context.Task.Configuration {
+		context.Logger.Infof("%s:%s", key, value)
+	}
+
 	targetImage := getWardenAdmissionTargetImage(context.Task.Configuration)
 
 	context.Logger.Infof("target image %s", targetImage)
