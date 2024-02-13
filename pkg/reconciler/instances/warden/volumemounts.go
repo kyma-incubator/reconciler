@@ -34,13 +34,13 @@ type Admission struct {
 	Image string `yaml:"image"`
 }
 
-type CleanupWardenAdmissionCertColumeMounts struct {
+type CleanupWardenAdmissionCertVolumeMounts struct {
 	name string
 }
 
-func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionContext) error {
+func (a *CleanupWardenAdmissionCertVolumeMounts) Run(context *service.ActionContext) error {
 
-	context.Logger.Infof("Action '%s' executed (passed version was '%s')", a.name, context.Task.Version)
+	context.Logger.Debugf("Action '%s' executed (passed version was '%s', passed URL was '%s')", a.name, context.Task.Version, context.Task.URL)
 
 	k8sClient := context.KubeClient
 
@@ -49,9 +49,9 @@ func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionCont
 		return errors.Wrap(err, "while unmarshalling global.admission.image value from warden chart")
 	}
 
-	context.Logger.Infof("target image %s", targetImage)
+	context.Logger.Debugf("target image %s", targetImage)
 
-	if isQualifiedForCleanup(targetImage) {
+	if isQualifiedForCleanup(targetImage, context) {
 
 		deployment, err := getDeployment(context.Context, k8sClient, wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace)
 		if err != nil {
@@ -61,42 +61,44 @@ func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionCont
 
 			wardenContainerIndex := getContainerIndexByName(deployment, containerName)
 			if wardenContainerIndex == -1 {
-				context.Logger.Infof("no action needed for warden admission deployment before applying image %s as no container with name %s was found", targetImage, containerName)
+				context.Logger.Debugf("no action needed for warden admission deployment before applying image %s as no container with name %s was found", targetImage, containerName)
 				return nil
 			}
 			volumeIndex := getVolumeIndexByName(deployment, volumeName)
 			volumeMountIndex := getVolumeMountIndexByName(deployment, wardenContainerIndex, volumeName)
 
 			if volumeIndex == -1 || volumeMountIndex == -1 {
-				context.Logger.Infof("no action needed for warden admission deployment before applying image %s as no certs volumes were found", targetImage)
+				context.Logger.Debugf("no action needed for warden admission deployment before applying image %s as no certs volumes were found", targetImage)
 				return nil
 			}
 
-			context.Logger.Infof("warden admission deployment qualifies for Volume[%d] nad VolumeMount[%d] cleanup before applying image %s", volumeIndex, volumeMountIndex, targetImage)
+			context.Logger.Debugf("warden admission deployment qualifies for Volume[%d] nad VolumeMount[%d] cleanup before applying image %s", volumeIndex, volumeMountIndex, targetImage)
 			data := fmt.Sprintf(`[{"op": "remove", "path": "/spec/template/spec/containers/%d/volumeMounts/%d"},{"op": "remove", "path": "/spec/template/spec/volumes/%d"}]`, wardenContainerIndex, volumeMountIndex, volumeIndex)
-			err = k8sClient.PatchUsingStrategy(context.Context, "Deployment", wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace, []byte(data), types.StrategicMergePatchType)
+			err = k8sClient.PatchUsingStrategy(context.Context, "Deployment", wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace, []byte(data), types.JSONPatchType)
 			if err != nil {
 				return errors.Wrap(err, fmt.Sprintf("while patching  %s deployment", wardenAdmissionDeploymentName))
 			}
 		}
 	}
 
-	context.Logger.Infof("no action required for new admission image [\"%s\"]", targetImage)
+	context.Logger.Debugf("no action required for new admission image [\"%s\"]", targetImage)
 	return nil
 }
 
-func isQualifiedForCleanup(image string) bool {
+func isQualifiedForCleanup(image string, context *service.ActionContext) bool {
 	split := strings.Split(image, ":")
 	if len(split) != 2 {
 		return false
 	}
-	return isVersionQualifiedForCleanup(split[1])
+	return isVersionQualifiedForCleanup(split[1], context)
 }
 
 // Only 0.10.0 or higher versions qualify for cleanup
-func isVersionQualifiedForCleanup(versionToCheck string) bool {
-	version, err := semver.NewVersion(versionToCheck)
+func isVersionQualifiedForCleanup(versionToCheck string, context *service.ActionContext) bool {
+	context.Logger.Debugf("Comparing %s with 0.10.0", versionToCheck)
+	version, err := semver.StrictNewVersion(versionToCheck)
 	if err != nil {
+		context.Logger.Errorf("%s in not a semver", versionToCheck)
 		return false //Non semver versions do not qualify for cleanup
 	}
 	targetVersion, _ := semver.NewVersion("0.10.0")
@@ -145,6 +147,7 @@ func getTargetWardenAdmissionImage(context *service.ActionContext) (string, erro
 	comp := chart.NewComponentBuilder(context.Task.Version, "warden").
 		WithConfiguration(context.Task.Configuration).
 		WithNamespace("kyma-system").
+		WithURL(context.Task.URL).
 		Build()
 
 	chartValues, err := context.ChartProvider.Configuration(comp)

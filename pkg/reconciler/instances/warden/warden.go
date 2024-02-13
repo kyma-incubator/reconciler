@@ -18,7 +18,7 @@ func init() {
 	}
 
 	reconciler.
-		WithPreReconcileAction(&CleanupWardenAdmissionCertColumeMounts{
+		WithPreReconcileAction(&CleanupWardenAdmissionCertVolumeMounts{
 			name: "cleanup-warden-admissio-cert-volume-mounts-action",
 		})
 }
