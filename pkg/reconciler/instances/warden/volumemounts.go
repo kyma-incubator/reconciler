@@ -12,12 +12,27 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"gopkg.in/yaml.v3"
 )
 
 const wardenAdmissionDeploymentName = "warden-admission"
 const wardenAdmissionDeploymentNamespace = "kyma-system"
 const volumeName = "certs"
 const containerName = "admission"
+
+type Config struct {
+	Global Global
+}
+
+// Global configuration of JetStream feature.
+type Global struct {
+	Admission Admission `yaml:"admission"`
+}
+type Admission struct {
+	Image string `yaml:"image"`
+}
 
 type CleanupWardenAdmissionCertColumeMounts struct {
 	name string
@@ -29,7 +44,12 @@ func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionCont
 
 	k8sClient := context.KubeClient
 
-	targetImage := getWardenAdmissionTargetImage(context.Task.Configuration)
+	targetImage, err := getTargetWardenAdmissionImage(context)
+	if err != nil {
+		return errors.Wrap(err, "while unmarshalling global.admission.image value from warden chart")
+	}
+
+	context.Logger.Infof("target image %s", targetImage)
 
 	if isQualifiedForCleanup(targetImage) {
 
@@ -41,18 +61,18 @@ func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionCont
 
 			wardenContainerIndex := getContainerIndexByName(deployment, containerName)
 			if wardenContainerIndex == -1 {
-				context.Logger.Debugf("no action needed for warden admission deployment before applying image %s as no container with name %s was found", targetImage, containerName)
+				context.Logger.Infof("no action needed for warden admission deployment before applying image %s as no container with name %s was found", targetImage, containerName)
 				return nil
 			}
 			volumeIndex := getVolumeIndexByName(deployment, volumeName)
 			volumeMountIndex := getVolumeMountIndexByName(deployment, wardenContainerIndex, volumeName)
 
 			if volumeIndex == -1 || volumeMountIndex == -1 {
-				context.Logger.Debugf("no action needed for warden admission deployment before applying image %s as no certs volumes were found", targetImage)
+				context.Logger.Infof("no action needed for warden admission deployment before applying image %s as no certs volumes were found", targetImage)
 				return nil
 			}
 
-			context.Logger.Debugf("warden admission deployment qualifies for Volume[%d] nad VolumeMount[%d] cleanup before applying image %s", volumeIndex, volumeMountIndex, targetImage)
+			context.Logger.Infof("warden admission deployment qualifies for Volume[%d] nad VolumeMount[%d] cleanup before applying image %s", volumeIndex, volumeMountIndex, targetImage)
 			data := fmt.Sprintf(`[{"op": "remove", "path": "/spec/template/spec/containers/%d/volumeMounts/%d"},{"op": "remove", "path": "/spec/template/spec/volumes/%d"}]`, wardenContainerIndex, volumeMountIndex, volumeIndex)
 			err = k8sClient.PatchUsingStrategy(context.Context, "Deployment", wardenAdmissionDeploymentName, wardenAdmissionDeploymentNamespace, []byte(data), types.StrategicMergePatchType)
 			if err != nil {
@@ -61,7 +81,7 @@ func (a *CleanupWardenAdmissionCertColumeMounts) Run(context *service.ActionCont
 		}
 	}
 
-	context.Logger.Debugf("no action required for new admission image [\"%s\"]", targetImage)
+	context.Logger.Infof("no action required for new admission image [\"%s\"]", targetImage)
 	return nil
 }
 
@@ -121,19 +141,26 @@ func getContainerIndexByName(deployment *appsv1.Deployment, containerName string
 	return -1
 }
 
-func getWardenAdmissionTargetImage(config map[string]interface{}) string {
-	//global.admission.image
-	global, ok := config["global"].(map[string]interface{})
-	if !ok {
-		return ""
+func getTargetWardenAdmissionImage(context *service.ActionContext) (string, error) {
+	comp := chart.NewComponentBuilder(context.Task.Version, "warden").
+		WithConfiguration(context.Task.Configuration).
+		WithNamespace("kyma-system").
+		Build()
+
+	chartValues, err := context.ChartProvider.Configuration(comp)
+	if err != nil {
+		return "", err
 	}
-	admission, ok := global["admission"].(map[string]interface{})
-	if !ok {
-		return ""
+
+	data, err := yaml.Marshal(chartValues)
+	if err != nil {
+		return "", err
 	}
-	image, ok := admission["image"].(string)
-	if !ok {
-		return ""
+
+	values := &Config{}
+	if err := yaml.Unmarshal(data, &values); err != nil {
+		return "", err
 	}
-	return image
+
+	return fmt.Sprint(values.Global.Admission.Image), nil
 }
