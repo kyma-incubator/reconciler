@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
+func TestCleanupWardenAdmissionCertVolumeMounts_Run(t *testing.T) {
 
 	t.Run("no admission image override present", func(t *testing.T) {
 		chartProvider := &chartmocks.Provider{}
@@ -39,14 +39,14 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task:          &reconciler.Task{Version: "testversion"},
 			ChartProvider: chartProvider,
 		}
-		action := &CleanupWardenAdmissionCertColumeMounts{}
+		action := &CleanupWardenAdmissionCertVolumeMounts{}
 		err = action.Run(context)
 		require.NoError(t, err)
 	})
 
 	t.Run("admission image override present - doesnt qualify for cleanup", func(t *testing.T) {
 		chartProvider := &chartmocks.Provider{}
-		chartValuesYAML := getWardenValuesYAML(true, "europe-docker.pkg.dev/kyma-project/prod/warden/admission:kusedug")
+		chartValuesYAML := getWardenValuesYAML(true, "europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20230529-2de25d82")
 		chartValues, err := unmarshalTestValues(chartValuesYAML)
 		require.NoError(t, err)
 		chartProvider.On("Configuration", mock.Anything).Return(chartValues, nil)
@@ -59,7 +59,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task:          &reconciler.Task{Version: "testversion"},
 			ChartProvider: chartProvider,
 		}
-		action := &CleanupWardenAdmissionCertColumeMounts{}
+		action := &CleanupWardenAdmissionCertVolumeMounts{}
 		err = action.Run(context)
 		require.NoError(t, err)
 	})
@@ -80,7 +80,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task:          &reconciler.Task{Version: "testversion"},
 			ChartProvider: chartProvider,
 		}
-		action := &CleanupWardenAdmissionCertColumeMounts{}
+		action := &CleanupWardenAdmissionCertVolumeMounts{}
 		err = action.Run(context)
 		require.NoError(t, err)
 	})
@@ -101,7 +101,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task:          &reconciler.Task{Version: "testversion"},
 			ChartProvider: chartProvider,
 		}
-		action := &CleanupWardenAdmissionCertColumeMounts{}
+		action := &CleanupWardenAdmissionCertVolumeMounts{}
 		err = action.Run(context)
 		require.NoError(t, err)
 	})
@@ -122,7 +122,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			Task:          &reconciler.Task{Version: "testversion"},
 			ChartProvider: chartProvider,
 		}
-		action := &CleanupWardenAdmissionCertColumeMounts{}
+		action := &CleanupWardenAdmissionCertVolumeMounts{}
 		err = action.Run(context)
 		require.Error(t, err)
 	})
@@ -150,7 +150,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			},
 			ChartProvider: chartProvider,
 		}
-		action := &CleanupWardenAdmissionCertColumeMounts{}
+		action := &CleanupWardenAdmissionCertVolumeMounts{}
 		err = action.Run(context)
 		require.NoError(t, err)
 	})
@@ -173,7 +173,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			},
 			ChartProvider: chartProvider,
 		}
-		action := &CleanupWardenAdmissionCertColumeMounts{}
+		action := &CleanupWardenAdmissionCertVolumeMounts{}
 		err = action.Run(context)
 		require.NoError(t, err)
 	})
@@ -200,7 +200,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			},
 			ChartProvider: chartProvider,
 		}
-		action := &CleanupWardenAdmissionCertColumeMounts{}
+		action := &CleanupWardenAdmissionCertVolumeMounts{}
 		err = action.Run(context)
 		require.NoError(t, err)
 	})
@@ -233,7 +233,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			},
 			ChartProvider: chartProvider,
 		}
-		action := &CleanupWardenAdmissionCertColumeMounts{}
+		action := &CleanupWardenAdmissionCertVolumeMounts{}
 		err = action.Run(context)
 		require.NoError(t, err)
 	})
@@ -274,7 +274,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			},
 			ChartProvider: chartProvider,
 		}
-		action := &CleanupWardenAdmissionCertColumeMounts{}
+		action := &CleanupWardenAdmissionCertVolumeMounts{}
 		err = action.Run(context)
 		require.NoError(t, err)
 	})
@@ -306,7 +306,7 @@ func TestCleanupWardenAdmissionCertColumeMounts_Run(t *testing.T) {
 			},
 			ChartProvider: chartProvider,
 		}
-		action := &CleanupWardenAdmissionCertColumeMounts{}
+		action := &CleanupWardenAdmissionCertVolumeMounts{}
 		err = action.Run(context)
 		require.Error(t, err)
 	})
