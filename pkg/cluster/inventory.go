@@ -27,6 +27,7 @@ type Inventory interface {
 	StatusChanges(runtimeID string, offset time.Duration) ([]*StatusChange, error)
 	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
+	ClustersInStatusDeleteError() ([]*State, error)
 	CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error)
 	WithTx(tx *db.TxConnection) (Inventory, error)
 	RemoveStatusesWithoutReconciliations(timeout time.Duration, statusCleanupBatchSize int) (int, error)
@@ -567,6 +568,15 @@ func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 		allowedStatuses: []model.Status{
 			model.ClusterStatusReconcileError, model.ClusterStatusReconcileErrorRetryable,
 			model.ClusterStatusDeleting, model.ClusterStatusDeleteError, model.ClusterStatusDeleteErrorRetryable,
+		},
+	}
+	return i.filterClusters(statusFilter)
+}
+
+func (i *DefaultInventory) ClustersInStatusDeleteError() ([]*State, error) {
+	statusFilter := &statusFilter{
+		allowedStatuses: []model.Status{
+			model.ClusterStatusDeleteError,
 		},
 	}
 	return i.filterClusters(statusFilter)

@@ -195,6 +195,26 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 
 func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadline time.Time,
 	statusCleanupBatchSize int, timeout time.Duration) error {
+
+	//cleanup clusters which were in delete-error state
+	deletableClusters, err := t.Inventory().ClustersInStatusDeleteError()
+	if err == nil {
+		for _, deletableCluster := range deletableClusters {
+			t.logger.Infof("%s Deleting cluster '%s' because it is in state '%s'",
+				CleanerPrefix, deletableCluster.Cluster.RuntimeID, model.ClusterStatusDeleteError)
+
+			err := t.Inventory().Delete(deletableCluster.Cluster.RuntimeID)
+
+			if err != nil {
+				t.logger.Warnf("%s Failed to delete cluster '%s' which is in state '%s': %s",
+					CleanerPrefix, deletableCluster.Cluster.RuntimeID, model.ClusterStatusDeleteError, err)
+			}
+		}
+	} else {
+		t.logger.Errorf("%s Failed to retrieve clusters which are in state '%s' to mark them as deleted: %s",
+			CleanerPrefix, model.ClusterStatusDeleteError, err)
+	}
+
 	// delete statuses without reconciliations
 	deletedStatusesCount, err := t.Inventory().RemoveStatusesWithoutReconciliations(timeout, statusCleanupBatchSize)
 	if err != nil {
