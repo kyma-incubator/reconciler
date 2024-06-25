@@ -1,3 +1,7 @@
+## :warning: **Archived**
+
+This repository has been deprecated and archived on Jun 25th, 2024. There is replacement available, see https://github.com/kyma-project/lifecycle-manager.
+
 # Reconciler
 
 # 1. Introduction and Goals
